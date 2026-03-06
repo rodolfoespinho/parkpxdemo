@@ -2582,7 +2582,3 @@ export default function ParkPX(){
     </div>
   );
 }
-
-// ── Mount ──────────────────────────────────────
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
