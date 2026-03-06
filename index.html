@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#3d7a3a" />
+  <meta name="description" content="Parquímetro Digital — Câmara Municipal de Peniche" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="ParkPX" />
+  <title>ParkPX — Parquímetro Digital de Peniche</title>
+
+  <!-- Open Graph (partilha em redes sociais) -->
+  <meta property="og:title" content="ParkPX — Parquímetro Digital" />
+  <meta property="og:description" content="Pague o estacionamento em Peniche pelo telemóvel." />
+  <meta property="og:type" content="website" />
+
+  <!-- React + Babel (via CDN — sem necessidade de build) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { background: #f2f5f2; }
+    /* Loading state enquanto o JS carrega */
+    #root:empty::after {
+      content: '';
+      display: block;
+      width: 40px; height: 40px;
+      border: 3px solid rgba(61,122,58,.2);
+      border-top-color: #3d7a3a;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    @keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- A app React -->
+  <script type="text/babel" src="./App.jsx" data-type="module"></script>
+</body>
+</html>
