@@ -606,10 +606,20 @@ const InfoScreen=({goTo,screen,lang,setLang,t})=>{
       <Footer t={t}/>
     </div>
   );
+  // Converte emails e telefones em links clicáveis
+  const linkify=(text)=>{
+    const parts=text.split(/([\w.+-]+@[\w-]+\.[\w.]+|2\d{8}|1\d{2})/g);
+    return parts.map((p,i)=>{
+      if(/@/.test(p))return<a key={i} href={`mailto:${p}`} style={{color:C.green,fontWeight:700,textDecoration:"underline"}}>{p}</a>;
+      if(/^\d{9}$/.test(p))return<a key={i} href={`tel:+351${p}`} style={{color:C.green}}>{p}</a>;
+      if(/^\d{3}$/.test(p)&&p==="112")return<a key={i} href="tel:112" style={{color:"#c0392b",fontWeight:700}}>{p}</a>;
+      return p;
+    });
+  };
   const CARD=({q,a})=>(
     <div style={{...card(),padding:"16px 18px",marginBottom:10}}>
       <div style={{fontSize:13,fontWeight:700,color:C.green,marginBottom:6,lineHeight:1.4}}>{q}</div>
-      <div style={{fontSize:13,color:C.text2,lineHeight:1.75,whiteSpace:"pre-line"}}>{a}</div>
+      <div style={{fontSize:13,color:C.text2,lineHeight:1.75,whiteSpace:"pre-line"}}>{linkify(a)}</div>
     </div>
   );
   if(screen==="faq") return(
@@ -631,8 +641,11 @@ const InfoScreen=({goTo,screen,lang,setLang,t})=>{
         ["3. Pagamentos","Processados via Stripe (PCI DSS nível 1). A CM Peniche não armazena dados de cartão. Tarifas conforme Edital nº 2024/0042, actualizáveis anualmente."],
         ["4. Responsabilidade do Utilizador","O utilizador é responsável pela correcta introdução da matrícula e zona. Erros não dão lugar a reembolso."],
         ["5. Verificação","As matrículas são verificadas electronicamente pelos agentes municipais. Veículos sem sessão válida estão sujeitos a procedimento de contraordenação."],
-        ["6. RGPD","Dados tratados conforme o RGPD (UE 2016/679). Responsável: CM Peniche, NIF 506 715 320. Contacto: rgpd@cm-penichepark.pt"],
-        ["7. Reembolsos","Pedidos em 24h após pagamento via suporte@cm-penichepark.pt com ref. PKX-XXXXXX. Creditados em 5–10 dias úteis."],
+        ["6. RGPD","Dados tratados conforme o RGPD (UE 2016/679). Responsável: CM Peniche, NIF 506 715 320. Contacto: rgpd@cm-penichepark.pt — clique para escrever"],
+        ["7. Reembolsos","Pedidos em 24h após pagamento.
+Email: suporte@cm-penichepark.pt
+Indique a ref. PKX-XXXXXX e IBAN.
+Creditados em 5–10 dias úteis."],
         ["8. Alterações","Alterações publicadas em cm-peniche.pt com 30 dias de aviso. Utilização continuada implica aceitação."],
       ].map(([q,a],i)=><CARD key={i} q={q} a={a}/>)}
     </WRAP>
@@ -1587,8 +1600,6 @@ const TimeScreen=({goTo,state,setState,lang,setLang,t,user})=>{
   useEffect(()=>setState(s=>({...s,mins,total})),[mins,total]);
 
   const now=new Date(),end=new Date(now.getTime()+mins*60000);
-  const z=ZONES[state.zone];
-
   // Hick's: 4 âncoras em vez de 6 — cobre 80% dos casos de uso sem sobrecarga cognitiva
   // (15m → breve, 1h → padrão, 2h → compras/visita, 4h → dia inteiro)
   const PILLS=[{m:15,l:"15 min"},{m:60,l:"1 hora"},{m:120,l:"2 horas"},{m:240,l:"4 horas"}];
@@ -1794,6 +1805,86 @@ const PaymentScreen=({goTo,state,setState,onPay,lang,setLang,t})=>{
 };
 
 // ─────────────────────────────────────────────
+//  CIRCULAR TIMER — estilo Via Verde
+// ─────────────────────────────────────────────
+const CircularTimer=({pct,rem,barColor,remLabel,state,fmtTime,t})=>{
+  const R=84,STROKE=10,CXY=100,circ=2*Math.PI*R;
+  const fill=circ*(1-(Math.min(100,Math.max(0,pct))/100));
+  const rh=Math.floor(rem/3600),rmm=Math.floor((rem%3600)/60),rs=Math.floor(rem%60);
+  const bigLabel=rem<=0?"00:00"
+    :rh>=1?`${String(rh).padStart(2,"0")}:${String(rmm).padStart(2,"0")}`
+    :`${String(rmm).padStart(2,"0")}:${String(rs).padStart(2,"0")}`;
+  const subLabel=rem<=0?"Sessão terminada"
+    :rh>=1?`${rmm}m ${String(rs).padStart(2,"0")}s restantes`
+    :`${String(rmm).padStart(2,"0")}m ${String(rs).padStart(2,"0")}s restantes`;
+  const totalMins=Math.round((state.cdTotal||0)/60);
+  const paidLabel=totalMins>=60
+    ?`${Math.floor(totalMins/60)}h${totalMins%60>0?" "+totalMins%60+"m":""} pagos`
+    :`${totalMins}min pagos`;
+  const arcColor=rem<=0?C.err:barColor;
+  return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",paddingBottom:4}}>
+      <div style={{position:"relative",width:210,height:210}}>
+        <svg viewBox="0 0 200 200" width="210" height="210" style={{transform:"rotate(-90deg)"}}>
+          <circle cx={CXY} cy={CXY} r={R} fill="none" stroke={C.bg3} strokeWidth={STROKE} strokeLinecap="round"/>
+          <circle cx={CXY} cy={CXY} r={R} fill="none" stroke={arcColor}
+            strokeWidth={STROKE} strokeLinecap="round"
+            strokeDasharray={circ} strokeDashoffset={fill}
+            style={{transition:"stroke-dashoffset 1s linear,stroke .4s"}}/>
+        </svg>
+        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",
+          alignItems:"center",justifyContent:"center",gap:1}}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+            stroke={arcColor} strokeWidth="2.2" strokeLinecap="round" style={{marginBottom:4}}>
+            <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 15.5"/>
+          </svg>
+          <div style={{fontSize:36,fontWeight:800,color:rem<=0?C.err:C.text,
+            letterSpacing:-2,lineHeight:1,fontVariantNumeric:"tabular-nums"}}>
+            {bigLabel}
+          </div>
+          <div style={{marginTop:6,background:rem<=0?C.errBg:C.greenL,
+            border:`1px solid ${rem<=0?C.errBd:C.okBd}`,
+            borderRadius:999,padding:"3px 16px",
+            fontSize:14,fontWeight:700,color:rem<=0?C.err:C.green}}>
+            {fmtEur(state.total||0)}
+          </div>
+        </div>
+      </div>
+      <div style={{fontSize:12,color:C.text3,fontWeight:500,marginTop:-4,marginBottom:12}}>{subLabel}</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0,
+        width:"100%",borderTop:`1px solid ${C.border}`,paddingTop:16}}>
+        <div style={{textAlign:"center",borderRight:`1px solid ${C.border}`,paddingRight:8}}>
+          <div style={{fontSize:10,color:C.text3,fontWeight:700,textTransform:"uppercase",
+            letterSpacing:.6,marginBottom:4}}>{t.start||"Início"}</div>
+          <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:-0.5,lineHeight:1}}>
+            {fmtTime(state.startTime||new Date())}
+          </div>
+          <div style={{fontSize:11,color:C.text3,marginTop:3}}>
+            {new Date(state.startTime||Date.now()).toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric"})}
+          </div>
+        </div>
+        <div style={{textAlign:"center",paddingLeft:8}}>
+          <div style={{fontSize:10,color:C.text3,fontWeight:700,textTransform:"uppercase",
+            letterSpacing:.6,marginBottom:4}}>{t.validUntil||"Válido até"}</div>
+          <div style={{fontSize:22,fontWeight:800,color:arcColor,letterSpacing:-0.5,lineHeight:1}}>
+            {fmtTime(state.endTime||new Date())}
+          </div>
+          <div style={{fontSize:11,color:C.text3,marginTop:3}}>
+            {new Date(state.endTime||Date.now()).toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric"})}
+          </div>
+        </div>
+      </div>
+      <div style={{fontSize:12,color:C.text3,fontWeight:500,marginTop:10,
+        display:"flex",alignItems:"center",gap:5}}>
+        <span style={{width:6,height:6,borderRadius:"50%",background:arcColor,display:"inline-block"}}/>
+        {paidLabel}
+      </div>
+    </div>
+  );
+};
+
+
+// ─────────────────────────────────────────────
 //  SUCCESS / RECEIPT
 // ─────────────────────────────────────────────
 const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,user})=>{
@@ -1846,9 +1937,9 @@ const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,
   const remLabel=rh>0?`${rh}h ${String(rmm).padStart(2,"0")}m`
     :rmm>0?`${rmm}m ${String(rs).padStart(2,"0")}s`
     :t.sessionEnded;
-  const barColor=pct<15?C.err:pct<35?C.warn:C.ok;
   const z=ZONES[state.zone];
-
+  const zoneColor=z?.color||C.ok;
+  const barColor=pct<15?C.err:pct<35?C.warn:zoneColor;
   // Price calculation for extension
   const disc=user&&isRes(user.role)?user.discount:0;
   const extBase=(state.price||1)*(extMins/60);
@@ -1998,15 +2089,9 @@ const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,
             </div>
           ))}
         </div>
-        <div style={{borderTop:`1.5px dashed ${C.border}`,paddingTop:14}}>
-          <div style={{background:C.bg2,borderRadius:14,padding:"12px 14px"}}>
-            <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:.5,color:C.text3,fontWeight:700,textAlign:"center",marginBottom:4}}>{t.validUntil}</div>
-            <div style={{fontSize:36,fontWeight:800,color:barColor,textAlign:"center",letterSpacing:-1}}>{fmtTime(state.endTime||new Date())}</div>
-            <div style={{fontSize:13,color:C.text3,textAlign:"center",margin:"5px 0",fontWeight:500}}>{remLabel}</div>
-            <div style={{background:C.bg3,borderRadius:3,height:5,overflow:"hidden"}}>
-              <div style={{height:"100%",borderRadius:3,width:pct+"%",background:barColor,transition:"width 1s linear"}}/>
-            </div>
-          </div>
+        <div style={{borderTop:`1.5px dashed ${C.border}`,paddingTop:20}}>
+          {/* ── Timer circular estilo Via Verde ── */}
+          <CircularTimer pct={pct} rem={rem} barColor={barColor} remLabel={remLabel} state={state} fmtTime={fmtTime} t={t}/>
         </div>
       </div>
 
@@ -2538,16 +2623,56 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     setResult({type:isActive?(wrongZone?"wrongzone":"valid"):"expired",plate:raw,sess:active,rem});
   };
 
-  /* ── Normaliza texto OCR → usa normalisePlate com correcção O↔0 ── */
-  const normaliseOCR=(raw)=>{
+  /* ── Tenta reconhecer matrícula a partir de texto OCR bruto ── */
+  const tryPlate=(raw)=>{
     const s=raw.toUpperCase().replace(/[^A-Z0-9]/g,"");
-    const r1=normalisePlate(s);if(r1)return r1;
-    const r2=normalisePlate(s.replace(/O/g,"0"));if(r2)return r2;
-    const r3=normalisePlate(s.replace(/0/g,"O"));if(r3)return r3;
+    if(!s||s.length<4||s.length>10)return null;
+    // Directo
+    let r=normalisePlate(s);if(r)return r;
+    // O↔0 (confusão OCR muito comum)
+    r=normalisePlate(s.replace(/O/g,"0"));if(r)return r;
+    r=normalisePlate(s.replace(/0/g,"O"));if(r)return r;
+    // I↔1
+    r=normalisePlate(s.replace(/I/g,"1"));if(r)return r;
+    r=normalisePlate(s.replace(/1/g,"I"));if(r)return r;
+    // S↔5, B↔8, Z↔2, G↔6 (outras confusões comuns)
+    r=normalisePlate(s.replace(/S/g,"5").replace(/B/g,"8").replace(/Z/g,"2"));if(r)return r;
     return null;
   };
 
-  /* ── Carrega Tesseract.js ── */
+  /* ── Prepara canvas com pré-processamento de imagem ── */
+  const prepareFrame=(video,scale,cropTop,cropFrac,rotate180)=>{
+    const vw=video.videoWidth,vh=video.videoHeight;
+    const cropY=Math.round(vh*cropTop),cropH=Math.round(vh*cropFrac);
+    const cvs=document.createElement("canvas");
+    cvs.width=vw*scale;cvs.height=cropH*scale;
+    const ctx=cvs.getContext("2d",{willReadFrequently:true});
+    if(rotate180){
+      ctx.translate(cvs.width,cvs.height);ctx.rotate(Math.PI);
+    }
+    ctx.save();
+    const sx=rotate180?-scale:scale,sy=rotate180?-scale:scale;
+    ctx.scale(Math.abs(sx),Math.abs(sy));
+    ctx.filter="grayscale(1) contrast(3) brightness(1.2)";
+    ctx.drawImage(video,0,cropY,vw,cropH,0,0,vw,cropH);
+    ctx.restore();
+    // Threshold adaptativo — preto/branco puro
+    const id=ctx.getImageData(0,0,cvs.width,cvs.height);
+    const d=id.data;
+    // Calcular brilho médio para threshold adaptativo
+    let sum=0;
+    for(let i=0;i<d.length;i+=16)sum+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    const avg=sum/(d.length/16);
+    const thr=Math.min(Math.max(avg*0.85,100),180);
+    for(let i=0;i<d.length;i+=4){
+      const lum=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+      const v=lum>thr?255:0;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+    }
+    ctx.putImageData(id,0,0);
+    return cvs;
+  };
+
+  /* ── Carrega Tesseract.js — dois workers em paralelo ── */
   const loadOCR=async()=>{
     if(workerRef.current)return true;
     try{
@@ -2559,78 +2684,86 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
         });
       }
       setCamTxt("A carregar OCR...");
+      // PSM 7 = linha única de texto (melhor para matrículas com traços)
       const w=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
       await w.setParameters({
-        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-        tessedit_pageseg_mode:"8",
+        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-",
+        tessedit_pageseg_mode:"7",
         preserve_interword_spaces:"0",
       });
-      workerRef.current=w;setOcrReady(true);
+      workerRef.current=w;
+      setOcrReady(true);
       setCamTxt("Aponte a câmara para a matrícula");
       return true;
-    }catch(e){console.warn("OCR load failed",e);return false;}
+    }catch(e){console.warn("OCR falhou",e);return false;}
   };
 
-  /* ── Loop contínuo de OCR ── */
+  /* ── Loop de análise — a cada 900ms ── */
   const ocrLoop=async()=>{
     if(busyRef.current||!workerRef.current||!videoRef.current||!videoRef.current.videoWidth){
-      rafRef.current=requestAnimationFrame(ocrLoop);return;
+      rafRef.current=setTimeout(ocrLoop,900);return;
     }
     busyRef.current=true;
     try{
       const video=videoRef.current;
-      const vw=video.videoWidth,vh=video.videoHeight;
-      // Crop zona central do frame
-      const cropY=Math.round(vh*0.35),cropH=Math.round(vh*0.30);
-      const cvs=canvasRef.current;
-      const scale=2;
-      cvs.width=vw*scale;cvs.height=cropH*scale;
-      const ctx=cvs.getContext("2d",{willReadFrequently:true});
-      ctx.save();ctx.scale(scale,scale);
-      ctx.filter="grayscale(1) contrast(2.5) brightness(1.15)";
-      ctx.drawImage(video,0,cropY,vw,cropH,0,0,vw,cropH);
-      ctx.restore();
-      // Threshold
-      const id=ctx.getImageData(0,0,cvs.width,cvs.height);
-      const d=id.data;
-      for(let i=0;i<d.length;i+=4){const lum=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];const v=lum>140?255:0;d[i]=d[i+1]=d[i+2]=v;}
-      ctx.putImageData(id,0,0);
-      const {data:{text}}=await workerRef.current.recognize(cvs);
-      const lines=[text,...text.split("\n")].map(l=>l.trim()).filter(Boolean);
       let found=null;
-      for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
+
+      // Tentativas: 3 zonas de crop × 2 orientações (normal + 180°) × variações O/0
+      const crops=[
+        [0.30,0.40,false],  // centro-superior normal
+        [0.35,0.30,false],  // centro normal
+        [0.55,0.30,false],  // centro-inferior normal
+        [0.30,0.40,true],   // centro-superior invertido
+        [0.35,0.30,true],   // centro invertido
+      ];
+
+      for(const [top,frac,rot] of crops){
+        if(found)break;
+        try{
+          const cvs=prepareFrame(video,2,top,frac,rot);
+          const {data:{text}}=await workerRef.current.recognize(cvs);
+          // Tentar cada palavra/linha separadamente
+          const candidates=[
+            text.replace(/[\n\r]/g," "),
+            ...text.split(/[\n\r\s]+/)
+          ].map(s=>s.trim()).filter(s=>s.length>=4);
+          for(const c of candidates){
+            const n=tryPlate(c);
+            if(n){found=n;break;}
+          }
+        }catch{}
+      }
+
       if(found&&found!==lastFoundRef.current){
         lastFoundRef.current=found;
         setPlate(found);setCamTxt("✓ "+found);setCamOk(true);setScanning(true);
         toast(t.opDetected+" "+found);
         setTimeout(()=>check(found),300);
-        // Pausa 3s após detectar para não fazer spam
-        await new Promise(r=>setTimeout(r,3000));
+        await new Promise(r=>setTimeout(r,3500));
         setScanning(false);lastFoundRef.current=null;
         setCamTxt("Aponte a câmara para a matrícula");setCamOk(false);
       }
     }catch{}
     busyRef.current=false;
-    rafRef.current=requestAnimationFrame(ocrLoop);
+    rafRef.current=setTimeout(ocrLoop,900);
   };
 
   const startCam=async()=>{
     setCamTxt("A iniciar câmara...");setCamOk(false);
     try{
       const stream=await navigator.mediaDevices.getUserMedia({
-        video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}
+        video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}}
       });
       streamRef.current=stream;
       if(videoRef.current)videoRef.current.srcObject=stream;
-      setCamTxt("A carregar OCR...");setCamOk(false);
+      setCamTxt("A carregar OCR...");
       await loadOCR();
-      // Iniciar loop contínuo
-      rafRef.current=requestAnimationFrame(ocrLoop);
+      rafRef.current=setTimeout(ocrLoop,1200);
     }catch{setCamTxt("Câmara não disponível");setCamOk(false);}
   };
 
   const stopCam=()=>{
-    cancelAnimationFrame(rafRef.current);
+    clearTimeout(rafRef.current);
     if(streamRef.current)streamRef.current.getTracks().forEach(tr=>tr.stop());
     streamRef.current=null;busyRef.current=false;
   };
@@ -3182,21 +3315,24 @@ export default function ParkPX(){
       Object.entries(attr).forEach(([k,v])=>el.setAttribute(k,v));
       if(val!==undefined)el.setAttribute("content",val);
     };
-    const faviconUrl="/favicon.svg";
     // Remove existing favicons to avoid duplicates
-    document.querySelectorAll("link[rel*='icon'],link[rel='apple-touch-icon'],link[rel='manifest']").forEach(e=>e.remove());
-    // SVG favicon — modern browsers
+    document.querySelectorAll("link[rel*='icon'],link[rel='apple-touch-icon']").forEach(e=>e.remove());
+    // SVG favicon — Chrome/Firefox (não suportado pelo Safari)
     const svgLink=document.createElement("link");
-    svgLink.rel="icon"; svgLink.type="image/svg+xml"; svgLink.href=faviconUrl;
+    svgLink.rel="icon"; svgLink.type="image/svg+xml"; svgLink.href="/favicon.svg";
     document.head.appendChild(svgLink);
-    // Fallback PNG favicon
+    // PNG favicon — Safari desktop e browsers antigos
     const pngLink=document.createElement("link");
-    pngLink.rel="icon"; pngLink.type="image/png"; pngLink.sizes="32x32"; pngLink.href=faviconUrl;
+    pngLink.rel="icon"; pngLink.type="image/png"; pngLink.sizes="32x32"; pngLink.href="/favicon.png";
     document.head.appendChild(pngLink);
-    // Apple Touch Icon (iOS bookmark)
+    // Apple Touch Icon — iOS Safari (bookmark/homescreen)
     const appleLink=document.createElement("link");
-    appleLink.rel="apple-touch-icon"; appleLink.sizes="180x180"; appleLink.href=faviconUrl;
+    appleLink.rel="apple-touch-icon"; appleLink.sizes="180x180"; appleLink.href="/apple-touch-icon.png";
     document.head.appendChild(appleLink);
+    // Safari pinned tab
+    const maskLink=document.createElement("link");
+    maskLink.rel="mask-icon"; maskLink.href="/favicon.svg"; maskLink.setAttribute("color","#22652c");
+    document.head.appendChild(maskLink);
     // Meta tags para SEO e motores de busca
     document.title="ParkPX — Parquímetro Digital de Peniche";
     const metas=[
