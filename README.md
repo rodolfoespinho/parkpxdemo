@@ -168,6 +168,11 @@ The system demonstrates how digital infrastructure could support:
 
 ---
 
+<img width="573" height="964" alt="image" src="https://github.com/user-attachments/assets/facb24dd-626c-43f1-a160-36e09d600a73" />
+
+
+---
+
 # 👤 Author
 
 Independent concept project exploring **digital parking infrastructure for municipalities**.
