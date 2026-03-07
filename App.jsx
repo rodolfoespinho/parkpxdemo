@@ -1233,7 +1233,7 @@ const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
             Duração
           </div>
           {/* Arc Duration Picker */}
-          <ArcDurationPicker mins={mins} onChange={m=>{const ni=OPTIONS.findIndex(o=>o.mins===m);if(ni>=0)setIdx(ni);}} zoneColor={z?z.color:C.green} total={total} disc={disc} base={base}/>
+          <ArcDurationPicker mins={mins} onChange={m=>{const ni=OPTIONS.findIndex(o=>o.mins===m);if(ni>=0)setIdx(ni);}} zoneColor={z?z.color:C.green} total={final} disc={disc} base={raw}/>
         </div>
 
         {/* CTA */}
@@ -1735,136 +1735,129 @@ const PaymentScreen=({goTo,state,setState,onPay,lang,setLang,t})=>{
 //  CIRCULAR TIMER — estilo Via Verde
 // ─────────────────────────────────────────────
 const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
-  // Options: 15min..8h in 15min steps
   const OPTIONS=useMemo(()=>{
     const out=[];
     for(let m=15;m<=480;m+=15){
       const h=Math.floor(m/60),rm=m%60;
       let label;
-      if(h===0)label=`${m} min`;
-      else if(rm===0)label=h===1?"1 hora":`${h} horas`;
-      else label=`${h}h ${String(rm).padStart(2,"0")}`;
+      if(h===0)label=m+" min";
+      else if(rm===0)label=h===1?"1 hora":h+" horas";
+      else label=h+"h "+String(rm).padStart(2,"0");
       out.push({mins:m,label});
     }
     return out;
   },[]);
 
-  const idx=OPTIONS.findIndex(o=>o.mins===mins)||3;
-  const total_opts=OPTIONS.length; // 32 steps (15..480)
+  const TOTAL=OPTIONS.length; // 32 steps
+  const foundIdx=OPTIONS.findIndex(o=>o.mins===mins);
+  const idx=foundIdx>=0?foundIdx:3; // safe default: 1 hora
 
-  // Arc geometry
-  const CX=140,CY=148,R=110,STROKE=18;
-  const START_ANG=-215, END_ANG=35; // degrees — bottom-left to bottom-right
-  const SWEEP=END_ANG-START_ANG; // 250 deg
-  const circ=2*Math.PI*R;
-  const arcLen=(SWEEP/360)*circ;
-  const pct=(idx)/(total_opts-1);
+  const pct=idx/(TOTAL-1); // 0..1
 
-  // Convert angle (deg) to SVG arc point
-  const pt=(deg)=>{
-    const r=deg*Math.PI/180;
-    return{x:CX+R*Math.cos(r),y:CY+R*Math.sin(r)};
-  };
+  // Arc: starts bottom-left (-220deg), sweeps 260deg clockwise to bottom-right (40deg)
+  const R=88, CX=130, CY=136, STROKE=16;
+  const START=-220, SWEEP=260;
+  const toRad=d=>d*Math.PI/180;
+  const pt=d=>({
+    x: CX+R*Math.cos(toRad(d)),
+    y: CY+R*Math.sin(toRad(d))
+  });
 
-  // Build arc path from START_ANG to current angle
-  const curAng=START_ANG+pct*SWEEP;
-  const startPt=pt(START_ANG);
+  const startPt=pt(START);
+  const endPt=pt(START+SWEEP);
+  const curAng=START+pct*SWEEP;
   const curPt=pt(curAng);
-  const large=pct*SWEEP>180?1:0;
+  const largeArc=pct*SWEEP>180?1:0;
 
-  // Track touch/mouse for drag
+  // Full track arc
+  const trackPath=`M ${startPt.x.toFixed(1)} ${startPt.y.toFixed(1)} A ${R} ${R} 0 1 1 ${endPt.x.toFixed(1)} ${endPt.y.toFixed(1)}`;
+  // Filled arc (only draw if pct>0)
+  const fillPath=pct>0
+    ?`M ${startPt.x.toFixed(1)} ${startPt.y.toFixed(1)} A ${R} ${R} 0 ${largeArc} 1 ${curPt.x.toFixed(1)} ${curPt.y.toFixed(1)}`
+    :null;
+
+  const color=zoneColor||C.green;
+
+  // Touch/mouse drag
   const svgRef=useRef(null);
   const dragging=useRef(false);
 
-  const angleFromCenter=(cx,cy,ex,ey)=>{
-    return Math.atan2(ey-cy,ex-cx)*180/Math.PI;
-  };
-
-  const angleToIdx=(ang)=>{
-    // Normalise angle to 0-SWEEP range starting at START_ANG
-    let a=ang-START_ANG;
-    while(a<0)a+=360;
-    while(a>360)a-=360;
-    if(a>SWEEP+10)return null; // outside arc
-    const frac=Math.max(0,Math.min(1,a/SWEEP));
-    return Math.round(frac*(total_opts-1));
-  };
-
-  const handlePos=(svg,clientX,clientY)=>{
-    const rect=svg.getBoundingClientRect();
-    // Scale from SVG viewBox (0,0,280,200) to actual rendered size
-    const scaleX=280/rect.width, scaleY=200/rect.height;
+  const posToIdx=(clientX,clientY)=>{
+    if(!svgRef.current)return null;
+    const rect=svgRef.current.getBoundingClientRect();
+    const scaleX=260/rect.width, scaleY=200/rect.height;
     const ex=(clientX-rect.left)*scaleX;
     const ey=(clientY-rect.top)*scaleY;
-    const ang=angleFromCenter(CX,CY,ex,ey);
-    const ni=angleToIdx(ang);
+    const angDeg=Math.atan2(ey-CY,ex-CX)*180/Math.PI;
+    // normalise to arc space
+    let a=angDeg-START;
+    if(a<0)a+=360;
+    if(a>SWEEP+15)return null;
+    const frac=Math.max(0,Math.min(1,a/SWEEP));
+    return Math.round(frac*(TOTAL-1));
+  };
+
+  const handleMove=(clientX,clientY)=>{
+    if(!dragging.current)return;
+    const ni=posToIdx(clientX,clientY);
     if(ni!=null)onChange(OPTIONS[ni].mins);
   };
 
   const PILLS=[{m:15,l:"15 min"},{m:60,l:"1h"},{m:120,l:"2h"},{m:240,l:"4h"}];
-
-  const color=zoneColor||C.green;
+  const priceStr=total!=null?total.toFixed(2).replace(".",",")+"€":"—";
+  const timeLabel=OPTIONS[idx]?.label||"—";
 
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",userSelect:"none"}}>
-      {/* SVG Arc */}
-      <div style={{position:"relative",width:"100%",maxWidth:280,touchAction:"none"}}
-        onMouseDown={e=>{dragging.current=true;handlePos(svgRef.current,e.clientX,e.clientY);}}
-        onMouseMove={e=>{if(dragging.current)handlePos(svgRef.current,e.clientX,e.clientY);}}
+      <div style={{position:"relative",width:"100%",maxWidth:260,touchAction:"none"}}
+        onMouseDown={e=>{dragging.current=true;const ni=posToIdx(e.clientX,e.clientY);if(ni!=null)onChange(OPTIONS[ni].mins);}}
+        onMouseMove={e=>handleMove(e.clientX,e.clientY)}
         onMouseUp={()=>{dragging.current=false;}}
         onMouseLeave={()=>{dragging.current=false;}}
-        onTouchStart={e=>{dragging.current=true;const t=e.touches[0];handlePos(svgRef.current,t.clientX,t.clientY);}}
-        onTouchMove={e=>{e.preventDefault();if(dragging.current){const t=e.touches[0];handlePos(svgRef.current,t.clientX,t.clientY);}}}
+        onTouchStart={e=>{dragging.current=true;const t=e.touches[0];const ni=posToIdx(t.clientX,t.clientY);if(ni!=null)onChange(OPTIONS[ni].mins);}}
+        onTouchMove={e=>{e.preventDefault();const t=e.touches[0];handleMove(t.clientX,t.clientY);}}
         onTouchEnd={()=>{dragging.current=false;}}
       >
-        <svg ref={svgRef} viewBox="0 0 280 200" style={{width:"100%",display:"block"}}>
+        <svg ref={svgRef} viewBox="0 0 260 200" style={{width:"100%",display:"block",overflow:"visible"}}>
           {/* Track */}
-          <path
-            fill="none" stroke={C.bg3} strokeWidth={STROKE} strokeLinecap="round"
-            d={`M ${pt(START_ANG).x} ${pt(START_ANG).y} A ${R} ${R} 0 1 1 ${pt(END_ANG).x} ${pt(END_ANG).y}`}
-          />
-          {/* Filled arc */}
-          {pct>0&&(
-            <path
-              fill="none" stroke={color} strokeWidth={STROKE} strokeLinecap="round"
-              style={{transition:"d .12s ease"}}
-              d={`M ${startPt.x} ${startPt.y} A ${R} ${R} 0 ${large} 1 ${curPt.x} ${curPt.y}`}
-            />
-          )}
-          {/* Thumb circle */}
-          <circle cx={curPt.x} cy={curPt.y} r={STROKE*1.1} fill={color}
-            style={{filter:`drop-shadow(0 2px 6px ${color}88)`,transition:"cx .12s,cy .12s"}}/>
-          <circle cx={curPt.x} cy={curPt.y} r={STROKE*0.45} fill="#fff"
-            style={{transition:"cx .12s,cy .12s"}}/>
-          {/* Centre: price + label */}
-          <text x={CX} y={CY-22} textAnchor="middle"
-            style={{fontSize:38,fontWeight:900,fill:color,fontFamily:"Sora,sans-serif",letterSpacing:-1}}>
-            {total!=null?total.toFixed(2).replace(".",",")+"€":"—"}
+          <path d={trackPath} fill="none" stroke={C.bg3} strokeWidth={STROKE} strokeLinecap="round"/>
+          {/* Fill */}
+          {fillPath&&<path d={fillPath} fill="none" stroke={color} strokeWidth={STROKE} strokeLinecap="round"/>}
+          {/* Thumb */}
+          <circle cx={curPt.x} cy={curPt.y} r={STROKE*1.15} fill={color}
+            style={{filter:"drop-shadow(0 2px 6px "+color+"88)"}}/>
+          <circle cx={curPt.x} cy={curPt.y} r={STROKE*0.42} fill="#fff"/>
+          {/* Price */}
+          <text x={CX} y={CY-18} textAnchor="middle"
+            fill={color} fontSize="34" fontWeight="900"
+            fontFamily="Sora,sans-serif" style={{letterSpacing:-1}}>
+            {priceStr}
           </text>
           {disc>0&&(
-            <text x={CX} y={CY+4} textAnchor="middle"
-              style={{fontSize:11,fill:C.ok,fontFamily:"Sora,sans-serif",fontWeight:700}}>
+            <text x={CX} y={CY+6} textAnchor="middle"
+              fill={C.ok} fontSize="11" fontWeight="700" fontFamily="Sora,sans-serif">
               -{disc}% desconto
             </text>
           )}
-          <text x={CX} y={CY+26} textAnchor="middle"
-            style={{fontSize:22,fontWeight:800,fill:C.text,fontFamily:"Sora,sans-serif",letterSpacing:-.5}}>
-            {OPTIONS[idx]?.label||"—"}
+          {/* Time label */}
+          <text x={CX} y={disc>0?CY+26:CY+14} textAnchor="middle"
+            fill={C.text} fontSize="20" fontWeight="800"
+            fontFamily="Sora,sans-serif" style={{letterSpacing:-.5}}>
+            {timeLabel}
           </text>
         </svg>
       </div>
-      {/* Pill shortcuts */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,width:"100%",marginTop:4}}>
+      {/* Quick pills */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,width:"100%",marginTop:2}}>
         {PILLS.map(({m,l})=>{
           const sel=mins===m;
           return(
             <button key={m} onClick={()=>onChange(m)}
               style={{minHeight:42,padding:"10px 4px",borderRadius:14,border:"none",
                 fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",
-                background:sel?color:C.bg3,
-                color:sel?"#fff":C.text2,
+                background:sel?color:C.bg3,color:sel?"#fff":C.text2,
                 transition:"all .15s",
-                boxShadow:sel?`0 2px 8px ${color}44`:"none"}}>
+                boxShadow:sel?"0 2px 8px "+color+"44":"none"}}>
               {l}
             </button>
           );
@@ -1872,11 +1865,7 @@ const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
       </div>
     </div>
   );
-};
-
-// ─────────────────────────────────────────────
-//  MINI COUNTDOWN BAR — recibo / ecrã de sucesso
-// ─────────────────────────────────────────────
+}
 const MiniCountdown=({rem,cdTotal,barColor,remLabel,expired})=>{
   const pct=cdTotal>0?Math.max(0,Math.min(100,(rem/cdTotal)*100)):0;
   const rh=Math.floor(rem/3600),rmm=Math.floor((rem%3600)/60),rs=Math.floor(rem%60);
