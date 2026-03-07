@@ -1541,6 +1541,7 @@ const DrumPicker=({items,selectedIndex,onChange})=>{
 //  TIME SELECT
 // ─────────────────────────────────────────────
 const TimeScreen=({goTo,state,setState,lang,setLang,t,user})=>{
+  const z=ZONES[state.zone];
   // Build options: 15, 30, 45 ... up to 8h = 480 min (every 15min)
   const OPTIONS=useMemo(()=>{
     const out=[];
@@ -1586,7 +1587,7 @@ const TimeScreen=({goTo,state,setState,lang,setLang,t,user})=>{
         {/* Picker card */}
         <div style={{...card(),padding:"24px 20px 20px",marginBottom:16}}>
           {/* Arc Duration Picker */}
-          <ArcDurationPicker mins={mins} onChange={m=>{const ni=OPTIONS.findIndex(o=>o.mins===m);if(ni>=0)setIdx(ni);}} zoneColor={C.green} total={total} disc={disc} base={base}/>
+          <ArcDurationPicker mins={mins} onChange={m=>{const ni=OPTIONS.findIndex(o=>o.mins===m);if(ni>=0)setIdx(ni);}} zoneColor={z?.color||C.green} total={total} disc={disc} base={base}/>
         </div>
 
         {/* Hick's: resumo mínimo — só o que o utilizador ainda não viu (hora de fim + total).
