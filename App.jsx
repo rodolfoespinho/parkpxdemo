@@ -675,7 +675,7 @@ const Landing=({goTo,state,lang,setLang,t})=>(
 //    Authorised origins must include your domain. Demo works without it — the button
 //    shows a setup hint instead of the popup.
 // ─────────────────────────────────────────────
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "750901746635-mna374qus37jkg3kbsv4mdptnduie2k2.apps.googleusercontent.com";
 const LS_GUSERS = "pkx_gusers_v9";
 
 const decodeJWT = tok => {
@@ -1055,21 +1055,31 @@ const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
   if(!z)return null;
 
   const [plate,setPlate]=useState(state.plate||"");
-  const [mins,setMins]=useState(60);
   const plateRef=useRef(null);
   const recent=lsG(LS_PLATES,[]);
 
+  // Mesmo options que TimeScreen: 15 em 15 min até 8h
+  const OPTIONS=useMemo(()=>{
+    const out=[];
+    for(let m=15;m<=480;m+=15){
+      const h=Math.floor(m/60),rm=m%60;
+      let label;
+      if(h===0)label=`${m} min`;
+      else if(rm===0)label=h===1?"1 hora":`${h} horas`;
+      else label=`${h}h ${String(rm).padStart(2,"0")}`;
+      out.push({mins:m,label});
+    }
+    return out;
+  },[]);
+
+  const [idx,setIdx]=useState(3); // default 1 hora
+  const mins=OPTIONS[idx].mins;
+  const PILLS=[{m:15,l:"15 min"},{m:60,l:"1 hora"},{m:120,l:"2 horas"},{m:240,l:"4 horas"}];
+
   // desconto se utilizador com desconto activo
   const disc=user?.discount||0;
-  const hours=mins/60;
-  const raw=parseFloat((z.rate*hours).toFixed(2));
+  const raw=parseFloat((z.rate*(mins/60)).toFixed(2));
   const final=disc?parseFloat((raw*(1-disc/100)).toFixed(2)):raw;
-
-  const DURATIONS=[
-    {m:30,label:"30 min"},{m:60,label:"1 hora"},
-    {m:90,label:"1h 30"},{m:120,label:"2 horas"},
-    {m:180,label:"3 horas"},{m:240,label:"4 horas"},
-  ];
 
   const proceed=()=>{
     const p=plate.trim().toUpperCase();
@@ -1161,40 +1171,44 @@ const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
           )}
         </div>
 
-        {/* Duração */}
+        {/* Duração — DrumPicker igual ao TimeScreen */}
         <div>
           <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",
             letterSpacing:1,color:C.text3,marginBottom:10}}>
             Duração
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-            {DURATIONS.map(d=>{
-              const sel=d.m===mins;
+          {/* Preço em destaque */}
+          <div style={{textAlign:"center",marginBottom:12}}>
+            <div style={{fontSize:36,fontWeight:900,color:z.color,letterSpacing:-1,lineHeight:1}}>
+              {final.toFixed(2).replace(".",",")} €
+            </div>
+            {disc>0&&(
+              <div style={{fontSize:11,color:C.ok,fontWeight:700,marginTop:4}}>
+                Desconto de {disc}% aplicado
+              </div>
+            )}
+          </div>
+          {/* Drum picker */}
+          <div style={{...card({background:C.surface2}),padding:"0",overflow:"hidden",marginBottom:12}}>
+            <DrumPicker items={OPTIONS} selectedIndex={idx} onChange={setIdx}/>
+          </div>
+          {/* Pills de atalho */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+            {PILLS.map(({m,l})=>{
+              const pidx=OPTIONS.findIndex(o=>o.mins===m);
+              const sel=idx===pidx;
               return(
-                <button key={d.m} onClick={()=>setMins(d.m)}
-                  style={{padding:"12px 8px",borderRadius:14,border:`1.5px solid ${sel?z.color:C.border}`,
-                    background:sel?z.color:"#fff",color:sel?"#fff":C.text,
-                    fontWeight:700,fontSize:13,cursor:"pointer",transition:"all .15s",
-                    fontFamily:"'Sora',sans-serif"}}>
-                  {d.label}
+                <button key={m} onClick={()=>setIdx(pidx)}
+                  style={{minHeight:44,padding:"10px 4px",borderRadius:14,border:"none",
+                    fontFamily:"inherit",fontSize:11,fontWeight:700,cursor:"pointer",
+                    background:sel?z.color:C.bg3,
+                    color:sel?"#fff":C.text2,
+                    transition:"all .18s",lineHeight:1.2,
+                    boxShadow:sel?`0 2px 8px ${z.color}44`:"none"}}>
+                  {l}
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        {/* Total */}
-        <div style={{...card(),padding:"16px 20px",
-          background:z.bg,border:`1px solid ${z.bd}`,
-          display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div>
-            <div style={{fontSize:12,color:C.text2,fontWeight:600}}>Total a pagar</div>
-            {disc>0&&<div style={{fontSize:11,color:C.text3,textDecoration:"line-through"}}>
-              {raw.toFixed(2).replace(".",",")} €
-            </div>}
-          </div>
-          <div style={{fontSize:28,fontWeight:900,color:z.color}}>
-            {final.toFixed(2).replace(".",",")} €
           </div>
         </div>
 
@@ -2095,6 +2109,79 @@ const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,
 const ResArea=({goTo,user,setUser,t,lang,setLang})=>{
   const [tab,setTab]=useState("vehicle");
   const hist=getHist(user?.email);
+
+  // Múltiplas matrículas
+  const [plates,setPlates]=useState(()=>{
+    const saved=lsG("pkx_plates_"+user?.email,[]);
+    const main=user?.plate;
+    if(main&&!saved.includes(main))return[main,...saved];
+    return saved.length?saved:(main?[main]:[]);
+  });
+  const [newPlate,setNewPlate]=useState("");
+  const [addingPlate,setAddingPlate]=useState(false);
+
+  // Dados pessoais
+  const [editPersonal,setEditPersonal]=useState(false);
+  const [phone,setPhone]=useState(user?.phone||"");
+  const [address,setAddress]=useState(user?.address||"");
+
+  // Notificações
+  const [notifPerm,setNotifPerm]=useState(()=>
+    typeof Notification!=="undefined"?Notification.permission:"default"
+  );
+
+  const savePersonal=()=>{
+    const updated={...user,phone,address};
+    saveGProfile(updated);setUser(updated);
+    setEditPersonal(false);
+  };
+
+  const addPlate=()=>{
+    const p=cleanPlate(newPlate);
+    if(p.length<2)return;
+    if(plates.includes(p)){setNewPlate("");return;}
+    const next=[...plates,p];
+    setPlates(next);
+    lsS("pkx_plates_"+user?.email,next);
+    const updated={...user,plate:user?.plate||p};
+    saveGProfile(updated);setUser(updated);
+    setNewPlate("");setAddingPlate(false);
+  };
+
+  const removePlate=(p)=>{
+    const next=plates.filter(x=>x!==p);
+    setPlates(next);
+    lsS("pkx_plates_"+user?.email,next);
+    if(user?.plate===p){
+      const updated={...user,plate:next[0]||""};
+      saveGProfile(updated);setUser(updated);
+    }
+  };
+
+  const setPrimaryPlate=(p)=>{
+    const updated={...user,plate:p};
+    saveGProfile(updated);setUser(updated);
+  };
+
+  const requestNotif=async()=>{
+    if(typeof Notification==="undefined")return;
+    const perm=await Notification.requestPermission();
+    setNotifPerm(perm);
+    if(perm==="granted"){
+      pushNotif("✓ Notificações activadas","Receberá avisos antes de o estacionamento expirar.");
+    }
+  };
+
+  const roleLabel=()=>{
+    if(user?.role==="resident")return"🏠 Residente";
+    if(user?.role==="worker")return"💼 Trabalhador";
+    if(user?.role?.startsWith("pending_resident"))return"⏳ Residente (pendente)";
+    if(user?.role?.startsWith("pending_worker"))return"⏳ Trabalhador (pendente)";
+    return"🧳 Visitante";
+  };
+
+  const validityYear=new Date().getFullYear()+1;
+
   return(
     <div style={{minHeight:"100svh",background:C.bg,display:"flex",flexDirection:"column"}}>
       <div style={{position:"relative",zIndex:9999}}>
@@ -2104,38 +2191,186 @@ const ResArea=({goTo,user,setUser,t,lang,setLang})=>{
             <div style={{position:"relative"}}><Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/></div>
           </div>}/>
       </div>
-      <div style={{flex:1,padding:"24px 18px",maxWidth:480,margin:"0 auto",width:"100%"}}>
+      <div style={{flex:1,padding:"24px 18px 48px",maxWidth:480,margin:"0 auto",width:"100%"}}>
+
         {/* Profile card */}
-        <div style={{...card(),padding:"20px 20px",marginBottom:24,
+        <div style={{...card(),padding:"20px",marginBottom:24,
           background:`linear-gradient(135deg,${C.greenL},${C.tealL})`}}>
-          <div style={{display:"flex",alignItems:"center",gap:16}}>
-            <div style={{width:50,height:50,borderRadius:25,background:C.green,color:"#fff",
-              display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,flexShrink:0}}>
-              {user?.name?.split(" ").map(n=>n[0]).slice(0,2).join("")}
-            </div>
-            <div>
-              <div style={{fontSize:16,fontWeight:700,color:C.text}}>{user?.name}</div>
-              <div style={{fontSize:13,color:C.text2,marginTop:4}}>
-                {user?.role==="resident"?"🏠 Residente":"💼 Trabalhador"}
-                <span style={{color:C.ok,fontWeight:700,marginLeft:6}}>· {user?.discount}% desconto</span>
+          <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:16}}>
+            {user?.picture
+              ?<img src={user.picture} alt="" style={{width:52,height:52,borderRadius:26,
+                  flexShrink:0,border:`2px solid ${C.green}`}}/>
+              :<div style={{width:52,height:52,borderRadius:26,background:C.green,color:"#fff",
+                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:800,flexShrink:0}}>
+                {user?.name?.split(" ").map(n=>n[0]).slice(0,2).join("")}
+              </div>}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:16,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</div>
+              <div style={{fontSize:12,color:C.text2,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.email}</div>
+              <div style={{fontSize:12,color:user?.discount>0?C.ok:C.text2,fontWeight:600,marginTop:4}}>
+                {roleLabel()}{user?.discount>0&&` · ${user.discount}% desconto`}
               </div>
             </div>
           </div>
+
+          {/* Notificações */}
+          <div style={{background:"rgba(255,255,255,.55)",borderRadius:12,padding:"12px 14px",
+            display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:C.text}}>🔔 Avisos de expiração</div>
+              <div style={{fontSize:11,color:C.text2,marginTop:2}}>Notificação 10 min antes do tempo terminar</div>
+            </div>
+            {notifPerm==="granted"
+              ?<div style={{fontSize:12,fontWeight:700,color:C.ok,background:C.okBg,
+                  border:`1px solid ${C.okBd}`,borderRadius:999,padding:"4px 10px"}}>✓ Activo</div>
+              :<button onClick={requestNotif}
+                  style={{fontSize:12,fontWeight:700,color:"#fff",background:C.green,
+                    border:"none",borderRadius:999,padding:"6px 14px",cursor:"pointer",
+                    fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                  Activar
+                </button>
+            }
+          </div>
         </div>
-        <Seg tabs={[{id:"vehicle",label:t.myVehicle},{id:"history",label:t.paymentHistory}]} active={tab} onChange={setTab}/>
+
+        <Seg tabs={[{id:"vehicle",label:"Veículos"},{id:"personal",label:"Dados Pessoais"},{id:"history",label:t.paymentHistory}]} active={tab} onChange={setTab}/>
+
+        {/* ── VEÍCULOS ── */}
         {tab==="vehicle"&&(
           <>
+            {user?.role?.startsWith("pending_")&&(
+              <div style={{background:C.warnBg,border:`1px solid ${C.warnBd}`,borderRadius:14,
+                padding:"12px 16px",marginBottom:16,fontSize:13,color:C.warn}}>
+                ⏳ Pedido de estatuto em análise — desconto aplicado após validação municipal (até 5 dias úteis).
+              </div>
+            )}
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,
+              color:C.text3,marginBottom:10}}>As minhas matrículas</div>
+            {plates.length===0&&(
+              <div style={{textAlign:"center",padding:"24px 0",color:C.text3,fontSize:14}}>
+                Nenhuma matrícula registada.
+              </div>
+            )}
+            {plates.map(p=>(
+              <div key={p} style={{...card(),padding:"12px 16px",marginBottom:8,
+                display:"flex",alignItems:"center",gap:12,
+                border:`2px solid ${p===user?.plate?C.green:C.border2}`,
+                background:p===user?.plate?C.greenL:C.surface}}>
+                <PlateBadge plate={p}/>
+                <div style={{flex:1}}>
+                  {p===user?.plate&&<div style={{fontSize:11,color:C.ok,fontWeight:700}}>✓ Principal</div>}
+                  {user?.discount>0&&<div style={{fontSize:11,color:C.ok}}>{user.discount}% desconto · Todas as zonas</div>}
+                  <div style={{fontSize:11,color:C.text3}}>Válida até 31 Dez {validityYear}</div>
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  {p!==user?.plate&&(
+                    <button onClick={()=>setPrimaryPlate(p)}
+                      style={{fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:999,
+                        border:`1px solid ${C.green}`,background:"transparent",color:C.green,
+                        cursor:"pointer",fontFamily:"inherit"}}>
+                      Principal
+                    </button>
+                  )}
+                  <button onClick={()=>removePlate(p)}
+                    style={{fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:999,
+                      border:`1px solid ${C.border}`,background:"transparent",color:C.text3,
+                      cursor:"pointer",fontFamily:"inherit"}}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+            {addingPlate?(
+              <div style={{...card(),padding:"14px 16px",marginBottom:8}}>
+                <input value={newPlate} onChange={e=>setNewPlate(cleanPlate(e.target.value))}
+                  placeholder="AA-00-AA" maxLength={12}
+                  style={{...inp(),textAlign:"center",fontSize:18,fontWeight:800,letterSpacing:3,marginBottom:10}}
+                  autoFocus onKeyDown={e=>e.key==="Enter"&&addPlate()}/>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={addPlate} style={{...btnP(),flex:1,padding:"10px",fontSize:13,borderRadius:12}}>
+                    Adicionar
+                  </button>
+                  <button onClick={()=>{setAddingPlate(false);setNewPlate("");}}
+                    style={{...btnO({borderRadius:12}),flex:1,padding:"10px",fontSize:13}}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ):(
+              <button onClick={()=>setAddingPlate(true)}
+                style={{...btnO({borderRadius:16}),width:"100%",marginBottom:16,fontSize:13,
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                + Adicionar matrícula
+              </button>
+            )}
+            {user?.discount>0&&(
+              <button style={btnP()} onClick={()=>goTo("zone")}>{t.payWithDiscount}</button>
+            )}
+          </>
+        )}
+
+        {/* ── DADOS PESSOAIS ── */}
+        {tab==="personal"&&(
+          <>
             <div style={{...card(),marginBottom:16}}>
-              {[[t.plate,user?.plate||"—"],[t.discount,`${user?.discount}% — Todas as zonas`],[t.validity,"31 Dez 2025"]].map(([l,v])=>(
-                <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"14px 18px",borderBottom:`1px solid ${C.border2}`}}>
+              {[["Nome",user?.name||"—"],["Email",user?.email||"—"]].map(([l,v])=>(
+                <div key={l} style={{display:"flex",justifyContent:"space-between",
+                  padding:"14px 18px",borderBottom:`1px solid ${C.border2}`}}>
                   <span style={{fontSize:14,color:C.text2}}>{l}</span>
-                  <span style={{fontSize:14,fontWeight:600,color:l===t.discount?C.ok:C.text}}>{v}</span>
+                  <span style={{fontSize:14,fontWeight:600,color:C.text,maxWidth:"55%",textAlign:"right",
+                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{v}</span>
                 </div>
               ))}
             </div>
-            <button style={btnP()} onClick={()=>goTo("zone")}>{t.payWithDiscount}</button>
+            {editPersonal?(
+              <div style={{...card(),padding:"18px 16px",marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,
+                  color:C.text3,marginBottom:6}}>Telefone</div>
+                <input value={phone} onChange={e=>setPhone(e.target.value)}
+                  placeholder="+351 9XX XXX XXX" type="tel"
+                  style={{...inp(),marginBottom:14}}/>
+                <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,
+                  color:C.text3,marginBottom:6}}>Morada</div>
+                <input value={address} onChange={e=>setAddress(e.target.value)}
+                  placeholder="Rua, nº, localidade" style={{...inp(),marginBottom:16}}/>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={savePersonal} style={{...btnP(),flex:1,padding:"10px",fontSize:13,borderRadius:12}}>
+                    Guardar
+                  </button>
+                  <button onClick={()=>setEditPersonal(false)}
+                    style={{...btnO({borderRadius:12}),flex:1,padding:"10px",fontSize:13}}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ):(
+              <div style={{...card(),marginBottom:16}}>
+                {[["Telefone",user?.phone||"—"],["Morada",user?.address||"—"]].map(([l,v])=>(
+                  <div key={l} style={{display:"flex",justifyContent:"space-between",
+                    padding:"14px 18px",borderBottom:`1px solid ${C.border2}`}}>
+                    <span style={{fontSize:14,color:C.text2}}>{l}</span>
+                    <span style={{fontSize:14,fontWeight:600,color:v==="—"?C.text3:C.text,
+                      maxWidth:"55%",textAlign:"right"}}>{v}</span>
+                  </div>
+                ))}
+                <button onClick={()=>setEditPersonal(true)}
+                  style={{width:"100%",padding:"14px 18px",background:"none",border:"none",
+                    color:C.green,fontWeight:700,fontSize:13,cursor:"pointer",
+                    fontFamily:"inherit",textAlign:"left"}}>
+                  ✏️ Editar dados pessoais
+                </button>
+              </div>
+            )}
+            <div style={{...card(),padding:"16px 18px",background:C.warnBg,border:`1px solid ${C.warnBd}`}}>
+              <div style={{fontSize:13,color:C.warn,fontWeight:600,marginBottom:4}}>🔒 Privacidade</div>
+              <div style={{fontSize:12,color:C.warn,lineHeight:1.6}}>
+                Os seus dados são tratados exclusivamente para fins de gestão de estacionamento pela Câmara Municipal de Peniche, nos termos do RGPD. Contacto DPO: rgpd@cm-penichepark.pt
+              </div>
+            </div>
           </>
         )}
+
+        {/* ── HISTÓRICO ── */}
         {tab==="history"&&(
           hist.length===0
             ?<div style={{textAlign:"center",padding:"40px 0",color:C.text3,fontSize:14}}>{t.noHistory}</div>
@@ -2158,7 +2393,7 @@ const ResArea=({goTo,user,setUser,t,lang,setLang})=>{
             ))
         )}
       </div>
-      <div style={{height:24}}/><Footer t={t}/>
+      <Footer t={t}/>
     </div>
   );
 };
@@ -2901,6 +3136,52 @@ export default function ParkPX(){
   const [user,setUser]=useState(null);
   const [notifSent,setNotifSent]=useState(false);
   const [state,setState]=useState({zone:null,price:0,plate:"",mins:60,total:0,pay:null,ref:null,startTime:null,endTime:null,cdTotal:0});
+
+  // ── Favicon & meta tags ──────────────────────
+  useEffect(()=>{
+    const setMeta=(sel,attr,val)=>{
+      let el=document.querySelector(sel);
+      if(!el){el=document.createElement(sel.startsWith("meta")||sel==="meta"?"meta":"link");document.head.appendChild(el);}
+      Object.entries(attr).forEach(([k,v])=>el.setAttribute(k,v));
+      if(val!==undefined)el.setAttribute("content",val);
+    };
+    const faviconUrl="/favicon.svg";
+    // Remove existing favicons to avoid duplicates
+    document.querySelectorAll("link[rel*='icon'],link[rel='apple-touch-icon'],link[rel='manifest']").forEach(e=>e.remove());
+    // SVG favicon — modern browsers
+    const svgLink=document.createElement("link");
+    svgLink.rel="icon"; svgLink.type="image/svg+xml"; svgLink.href=faviconUrl;
+    document.head.appendChild(svgLink);
+    // Fallback PNG favicon
+    const pngLink=document.createElement("link");
+    pngLink.rel="icon"; pngLink.type="image/png"; pngLink.sizes="32x32"; pngLink.href=faviconUrl;
+    document.head.appendChild(pngLink);
+    // Apple Touch Icon (iOS bookmark)
+    const appleLink=document.createElement("link");
+    appleLink.rel="apple-touch-icon"; appleLink.sizes="180x180"; appleLink.href=faviconUrl;
+    document.head.appendChild(appleLink);
+    // Meta tags para SEO e motores de busca
+    document.title="ParkPX — Parquímetro Digital de Peniche";
+    const metas=[
+      ["meta[name='description']",{name:"description"},"Pague o estacionamento em Peniche de forma rápida e simples. 6 zonas tarifadas, MB WAY, cartão. Câmara Municipal de Peniche."],
+      ["meta[name='theme-color']",{name:"theme-color"},"#22652c"],
+      ["meta[name='application-name']",{name:"application-name"},"ParkPX"],
+      ["meta[property='og:title']",{property:"og:title"},"ParkPX — Parquímetro Digital de Peniche"],
+      ["meta[property='og:description']",{property:"og:description"},"Pague o estacionamento em Peniche. Rápido, simples, sem papel."],
+      ["meta[property='og:image']",{property:"og:image"},"https://www.cm-penichepark.pt/favicon.svg"],
+      ["meta[property='og:url']",{property:"og:url"},"https://www.cm-penichepark.pt"],
+      ["meta[property='og:type']",{property:"og:type"},"website"],
+      ["meta[name='twitter:card']",{name:"twitter:card"},"summary"],
+      ["meta[name='twitter:title']",{name:"twitter:title"},"ParkPX — Parquímetro Digital de Peniche"],
+      ["meta[name='twitter:description']",{name:"twitter:description"},"Pague o estacionamento em Peniche. Rápido, simples, sem papel."],
+    ];
+    metas.forEach(([sel,attrs,content])=>{
+      let el=document.querySelector(sel);
+      if(!el){el=document.createElement("meta");document.head.appendChild(el);}
+      Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+      el.setAttribute("content",content);
+    });
+  },[]);
 
   const toast=useCallback(msg=>{setToastMsg(msg);setTimeout(()=>setToastMsg(""),2800);},[]);
   const goTo=useCallback(sc=>{setScreen(sc);window.scrollTo(0,0);},[]);
