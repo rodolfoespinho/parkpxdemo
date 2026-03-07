@@ -30,7 +30,7 @@ const T = {
     appName:"Câmara Municipal de Peniche", slogan:"Parquímetro Digital",
     pay:"🅿  Pagar Estacionamento", login:"Área Reservada",
     active:"Serviço activo · Peniche",
-    whereParking:"Onde está a parcar?", selectZone:"Seleccione a zona indicada na placa de sinalização.",
+    whereParking:"Onde está a estacionar?", selectZone:"Seleccione a zona indicada na placa de sinalização.",
     plate:"Matrícula", platePlaceholder:"AA-00-AA · AB123CD · 1ABC123",
     plateHint:"PT · ES · FR · DE · UK · IT · NL · BE · BR e outras",
     recentPlates:"Usadas recentemente", continue:"Prosseguir →",
@@ -281,41 +281,113 @@ const matchPlate=(a,b)=>a.toUpperCase().replace(/[\s\-]/g,"")===b.toUpperCase().
 const normalisePlate=(raw)=>{
   const s=raw.toUpperCase().replace(/[^A-Z0-9]/g,"");
   if(s.length<4||s.length>10)return null;
-  // Portugal
-  const pt1=s.match(/^([A-Z]{2})(\d{2})([A-Z]{2})$/);if(pt1)return`${pt1[1]}-${pt1[2]}-${pt1[3]}`;
-  const pt2=s.match(/^([A-Z]{2})([A-Z]{2})(\d{2})$/);if(pt2)return`${pt2[1]}-${pt2[2]}-${pt2[3]}`;
-  const pt3=s.match(/^(\d{2})([A-Z]{2})(\d{2})$/);if(pt3)return`${pt3[1]}-${pt3[2]}-${pt3[3]}`;
-  // Espanha 0000-BBB
-  const es=s.match(/^(\d{4})([BCDFGHJKLMNPRSTUVWXYZ]{3})$/);if(es)return`${es[1]}-${es[2]}`;
-  // Espanha antiga AA-0000-BB
-  const esO=s.match(/^([A-Z]{1,2})(\d{4})([A-Z]{1,2})$/);if(esO)return`${esO[1]}-${esO[2]}-${esO[3]}`;
-  // Franca AA-000-AA
-  const fr=s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(fr)return`${fr[1]}-${fr[2]}-${fr[3]}`;
-  // UK actual AB12CDE
-  const uk=s.match(/^([A-Z]{2})(\d{2})([A-Z]{3})$/);if(uk)return`${uk[1]}${uk[2]} ${uk[3]}`;
-  // UK antiga
-  const ukO=s.match(/^([A-Z]{1,2})(\d{2,4})([A-Z]{1,3})$/);if(ukO)return`${ukO[1]}${ukO[2]} ${ukO[3]}`;
-  // Italia AA000AA
-  const it=s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(it)return`${it[1]}-${it[2]}-${it[3]}`;
-  // Belgica 1-AAA-000
-  const be=s.match(/^(\d)([A-Z]{3})(\d{3})$/);if(be)return`${be[1]}-${be[2]}-${be[3]}`;
-  // Suecia/Finlandia AAA000
-  const se=s.match(/^([A-Z]{2,3})(\d{3})$/);if(se)return`${se[1]}-${se[2]}`;
-  // Noruega AA00000
-  const no=s.match(/^([A-Z]{2})(\d{5})$/);if(no)return`${no[1]}-${no[2]}`;
-  // Irlanda 00AA000000
-  const ie=s.match(/^(\d{2})([A-Z]{1,2})(\d{1,6})$/);if(ie)return`${ie[1]}-${ie[2]}-${ie[3]}`;
-  // Brasil AAA0000 / Mercosul AAA0A00
-  const br1=s.match(/^([A-Z]{3})(\d{4})$/);if(br1)return`${br1[1]}-${br1[2]}`;
-  const br2=s.match(/^([A-Z]{3})(\d)([A-Z])(\d{2})$/);if(br2)return`${br2[1]}${br2[2]}${br2[3]}${br2[4]}`;
-  // Suica AA000000
-  const ch=s.match(/^([A-Z]{1,2})(\d{4,6})$/);if(ch)return`${ch[1]} ${ch[2]}`;
-  // Polonia AA00000
-  const pl=s.match(/^([A-Z]{2,3})(\d{4,5})$/);if(pl)return`${pl[1]}-${pl[2]}`;
-  // Austria/Alemanha generico: letras+numeros misturados
-  const de=s.match(/^([A-Z]{1,3})([A-Z]{1,2})(\d{1,4}[EH]?)$/);
-  if(de&&de[3].replace(/[EH]$/,"").length>=1)return`${de[1]}-${de[2]}-${de[3]}`;
-  // Generico internacional (US/CA/AU) — 5-9 alfanum com letras E numeros
+
+  // ── PORTUGAL ─────────────────────────────────────────────────────────────
+  // 2005+ : NN-NN-LL  ex: 71-68-QD (mais comum actualmente)
+  let m=s.match(/^(\d{2})(\d{2})([A-Z]{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+  // 2020+ : NN-LL-LL  ex: 00-AB-CD
+  m=s.match(/^(\d{2})([A-Z]{2})([A-Z]{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+  // 1992-2005: LL-NN-LL  ex: AA-65-AL
+  m=s.match(/^([A-Z]{2})(\d{2})([A-Z]{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+  // 2020+ : LL-LL-NN
+  m=s.match(/^([A-Z]{2})([A-Z]{2})(\d{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+  // Formato NN-LL-NN
+  m=s.match(/^(\d{2})([A-Z]{2})(\d{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+
+  // ── ESPANHA ───────────────────────────────────────────────────────────────
+  // 2000+: NNNN-LLL  ex: 1272-JXC  (L não inclui AEIOUÑ)
+  m=s.match(/^(\d{4})([BCDFGHJKLMNPRSTUVWXYZ]{3})$/);if(m)return`${m[1]}-${m[2]}`;
+  // Antiga: LL-NNNN-LL
+  m=s.match(/^([A-Z]{1,2})(\d{4})([A-Z]{1,2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+
+  // ── FRANÇA ────────────────────────────────────────────────────────────────
+  // 2009+: LL-NNN-LL  ex: CN-498-JC
+  m=s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+
+  // ── ALEMANHA ──────────────────────────────────────────────────────────────
+  // L{1-3}+L{1-2}+N{1-4}[H|E]?  ex: ES-DM-8011  / M-AB-123
+  m=s.match(/^([A-Z]{1,3})([A-Z]{2})(\d{1,4}[HE]?)$/);
+  if(m&&m[3].replace(/[HE]$/,"").length>=1)return`${m[1]}-${m[2]}-${m[3]}`;
+
+  // ── ITÁLIA ────────────────────────────────────────────────────────────────
+  // 2004+: LL-NNN-LL  ex: BC-067-HP (igual a França, já apanhado acima)
+
+  // ── REINO UNIDO ───────────────────────────────────────────────────────────
+  // Actual: LL+NN+LLL  ex: AB12 CDE
+  m=s.match(/^([A-Z]{2})(\d{2})([A-Z]{3})$/);if(m)return`${m[1]}${m[2]} ${m[3]}`;
+  // Antiga: L{1-3}+N{1-4}+L{1-3}
+  m=s.match(/^([A-Z]{1,3})(\d{2,4})([A-Z]{1,3})$/);if(m)return`${m[1]}${m[2]} ${m[3]}`;
+
+  // ── HOLANDA ───────────────────────────────────────────────────────────────
+  // Atual: vários formatos com traço. Ex: 2-KDL-81 → stripped: 2KDL81
+  m=s.match(/^(\d)([A-Z]{3})(\d{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+  m=s.match(/^([A-Z]{2})(\d{2})([A-Z]{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;// NL sidecode 3
+  m=s.match(/^(\d{2})([A-Z]{2})(\d{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;  // NL sidecode 1
+
+  // ── BÉLGICA ───────────────────────────────────────────────────────────────
+  // 2010+: N-LLL-NNN  ex: 1-EBY-514 → 1EBY514
+  m=s.match(/^(\d)([A-Z]{3})(\d{3})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+
+  // ── BULGÁRIA ──────────────────────────────────────────────────────────────
+  // LL-NNNN-LL  ex: CA-6505-PC
+  m=s.match(/^([A-Z]{2})(\d{4})([A-Z]{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+
+  // ── ROMÊNIA ───────────────────────────────────────────────────────────────
+  // LL-NN-LLL  ex: TM-17-ALR
+  m=s.match(/^([A-Z]{2})(\d{2})([A-Z]{3})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+
+  // ── POLÓNIA ───────────────────────────────────────────────────────────────
+  // LL-NNNNN ou LLL-NNNN  ex: GKS-6LS4 (formato misto → genérico)
+  m=s.match(/^([A-Z]{2,3})(\d{4,5})$/);if(m)return`${m[1]}-${m[2]}`;
+
+  // ── ESLOVÉNIA ─────────────────────────────────────────────────────────────
+  // LL-LL-NNN  ex: LJ-RH-610
+  m=s.match(/^([A-Z]{2})([A-Z]{2})(\d{3})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+  // Hungria tem o mesmo padrão — LL+LL+NNN
+
+  // ── GRÉCIA ────────────────────────────────────────────────────────────────
+  // LLL-NNNN  ex: IBZ-4185
+  m=s.match(/^([A-Z]{3})(\d{4})$/);if(m)return`${m[1]}-${m[2]}`;
+
+  // ── IRLANDA ───────────────────────────────────────────────────────────────
+  // NN-L{1,2}-NNNNN  ex: 93-G-51870
+  m=s.match(/^(\d{2})([A-Z]{1,2})(\d{4,6})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+
+  // ── REPÚBLICA CHECA ───────────────────────────────────────────────────────
+  // NL-NNNNN  ex: 4A2-7983
+  m=s.match(/^(\d[A-Z]\d)(\d{4})$/);if(m)return`${m[1]}-${m[2]}`;
+  m=s.match(/^(\d)([A-Z])(\d{5})$/);if(m)return`${m[1]}${m[2]}-${m[3]}`;
+
+  // ── DINAMARCA ─────────────────────────────────────────────────────────────
+  // LL-NNNNN  ex: EW-40672
+  m=s.match(/^([A-Z]{2})(\d{5})$/);if(m)return`${m[1]}-${m[2]}`;
+
+  // ── ESTÓNIA ───────────────────────────────────────────────────────────────
+  // NNN-LLL  ex: 812-AUE
+  m=s.match(/^(\d{3})([A-Z]{3})$/);if(m)return`${m[1]}-${m[2]}`;
+
+  // ── FINLÂNDIA / CHIPRE / LITUÂNIA / MALTA / SUÉCIA ────────────────────────
+  // LLL-NNN  ex: CGI-964 / HBB-553 / AGB-250 / JAC-184 / TYA-300
+  m=s.match(/^([A-Z]{2,3})(\d{3})$/);if(m)return`${m[1]}-${m[2]}`;
+
+  // ── LETÓNIA / LUXEMBURGO ──────────────────────────────────────────────────
+  // LL-NNNN  ex: EN-5539 / WE-5669
+  m=s.match(/^([A-Z]{2})(\d{4})$/);if(m)return`${m[1]}-${m[2]}`;
+
+  // ── ÁUSTRIA ───────────────────────────────────────────────────────────────
+  // L{1-3}+N{2-4}+L{1-2}  ex: B-228-FK
+  m=s.match(/^([A-Z]{1,3})(\d{2,4})([A-Z]{1,2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+
+  // ── NORUEGA / SUÍÇA ───────────────────────────────────────────────────────
+  m=s.match(/^([A-Z]{2})(\d{5})$/);if(m)return`${m[1]}-${m[2]}`;   // NO: AB-00000
+  m=s.match(/^([A-Z]{1,2})(\d{4,6})$/);if(m)return`${m[1]} ${m[2]}`;// CH: AB-123456
+
+  // ── BRASIL ───────────────────────────────────────────────────────────────
+  m=s.match(/^([A-Z]{3})(\d{4})$/);if(m)return`${m[1]}-${m[2]}`;
+  m=s.match(/^([A-Z]{3})(\d)([A-Z])(\d{2})$/);if(m)return`${m[1]}${m[2]}${m[3]}${m[4]}`;
+
+  // ── GENÉRICO INTERNACIONAL ───────────────────────────────────────────────
+  // Aceitar 5-9 alfanum com pelo menos 1 letra + 1 número
   if(s.length>=5&&s.length<=9&&/[A-Z]/.test(s)&&/[0-9]/.test(s))return s;
   return null;
 };
@@ -1276,7 +1348,7 @@ const ZoneScreen=({goTo,state,setState,toast,lang,setLang,t,user})=>{
   useEffect(()=>{if(state.zone&&plateRef.current)plateRef.current.focus();},[]);
 
   return(
-    <div style={{minHeight:"100svh",background:C.bg,display:"flex",flexDirection:"column"}}>
+    <div style={{minHeight:"100svh",background:state.zone?`linear-gradient(175deg,${ZONES[state.zone].color}18 0%,${C.bg} 40%)`:C.bg,display:"flex",flexDirection:"column"}}>
       <div style={{position:"relative",zIndex:9999}}>
         <Nav left={<Back onClick={()=>goTo("landing")}/>} title={t.pay.replace("🅿️  ","")}
           right={<div style={{position:"relative"}}><Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/></div>}/>
@@ -1326,10 +1398,9 @@ const ZoneScreen=({goTo,state,setState,toast,lang,setLang,t,user})=>{
                   <div style={{fontSize:15,fontWeight:700,color:sel?z.color:C.text}}>{z.name}</div>
                   <div style={{fontSize:12,color:C.text3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{z.desc}</div>
                 </div>
-                <div style={{textAlign:"right",flexShrink:0}}>
-                  <div style={{fontSize:15,fontWeight:800,color:z.color}}>{ZR(id)}</div>
-                  {sel&&<div style={{fontSize:11,color:z.color,fontWeight:700,marginTop:2}}>✓ Seleccionada</div>}
-                </div>
+                {sel&&<div style={{flexShrink:0}}>
+                  <div style={{fontSize:11,color:z.color,fontWeight:700}}>✓ Seleccionada</div>
+                </div>}
               </div>
             );
           })}
@@ -1581,7 +1652,7 @@ const TimeScreen=({goTo,state,setState,lang,setLang,t,user})=>{
       <div style={{flex:1,padding:"20px 18px 40px",maxWidth:480,margin:"0 auto",width:"100%"}}>
         {z&&<div style={{...zChip(state.zone),marginBottom:20,fontSize:14}}>
           <span style={{width:8,height:8,borderRadius:"50%",background:z.color}}/>
-          Zona {state.zone} — {z.name}
+          Zona {state.zone} — {z.name} · {ZR(state.zone)}
         </div>}
 
         {/* Picker card */}
@@ -1756,7 +1827,7 @@ const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
   const pct=idx/(TOTAL-1); // 0..1
 
   // Arc: starts bottom-left (-220deg), sweeps 260deg clockwise to bottom-right (40deg)
-  const R=88, CX=130, CY=136, STROKE=16;
+  const R=88, CX=130, CY=128, STROKE=16;
   const START=-220, SWEEP=260;
   const toRad=d=>d*Math.PI/180;
   const pt=d=>({
@@ -1829,19 +1900,19 @@ const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
             style={{filter:"drop-shadow(0 2px 6px "+color+"88)"}}/>
           <circle cx={curPt.x} cy={curPt.y} r={STROKE*0.42} fill="#fff"/>
           {/* Price */}
-          <text x={CX} y={CY-18} textAnchor="middle"
+          <text x={CX} y={CY-8} textAnchor="middle"
             fill={color} fontSize="34" fontWeight="900"
             fontFamily="Sora,sans-serif" style={{letterSpacing:-1}}>
             {priceStr}
           </text>
           {disc>0&&(
-            <text x={CX} y={CY+6} textAnchor="middle"
+            <text x={CX} y={CY+16} textAnchor="middle"
               fill={C.ok} fontSize="11" fontWeight="700" fontFamily="Sora,sans-serif">
               -{disc}% desconto
             </text>
           )}
           {/* Time label */}
-          <text x={CX} y={disc>0?CY+26:CY+14} textAnchor="middle"
+          <text x={CX} y={disc>0?CY+36:CY+22} textAnchor="middle"
             fill={C.text} fontSize="20" fontWeight="800"
             fontFamily="Sora,sans-serif" style={{letterSpacing:-.5}}>
             {timeLabel}
@@ -1867,30 +1938,52 @@ const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
     </div>
   );
 }
-const MiniCountdown=({rem,cdTotal,barColor,remLabel,expired})=>{
+const CircularTimer=({rem,cdTotal,barColor,expired})=>{
+  const R=80,SW=11,C2=100;
+  const circ=2*Math.PI*R;
   const pct=cdTotal>0?Math.max(0,Math.min(100,(rem/cdTotal)*100)):0;
+  const offset=circ*(1-pct/100);
+  const color=expired?C.err:barColor;
   const rh=Math.floor(rem/3600),rmm=Math.floor((rem%3600)/60),rs=Math.floor(rem%60);
-  const timeStr=rem<=0?"00:00"
+  const timeStr=expired?"00:00"
     :rh>=1?`${String(rh).padStart(2,"0")}:${String(rmm).padStart(2,"0")}`
     :`${String(rmm).padStart(2,"0")}:${String(rs).padStart(2,"0")}`;
-  const color=rem<=0?C.err:barColor;
+  const subLabel=expired?"Sessão terminada":rh>=1?`${rh}h ${String(rmm).padStart(2,"0")}min restantes`:`${rmm}min ${String(rs).padStart(2,"0")}s restantes`;
   return(
-    <div style={{padding:"14px 0 4px"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <span style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:"uppercase",letterSpacing:.5}}>
-          {rem<=0?"Sessão terminada":"Tempo restante"}
-        </span>
-        <span style={{fontSize:20,fontWeight:800,color,fontVariantNumeric:"tabular-nums",letterSpacing:-0.5}}>
-          {timeStr}
-        </span>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"8px 0 4px"}}>
+      <div style={{position:"relative",width:200,height:200}}>
+        <svg width="200" height="200" viewBox="0 0 200 200" style={{transform:"rotate(-90deg)"}}>
+          {/* Track */}
+          <circle cx={C2} cy={C2} r={R} fill="none" stroke={C.bg3} strokeWidth={SW}/>
+          {/* Arc */}
+          <circle cx={C2} cy={C2} r={R} fill="none"
+            stroke={color} strokeWidth={SW}
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
+            style={{transition:"stroke-dashoffset 1s linear, stroke .4s"}}/>
+        </svg>
+        {/* Centre content */}
+        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",
+          alignItems:"center",justifyContent:"center",gap:2}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={expired?C.err:C.text3} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <div style={{fontSize:36,fontWeight:900,color,fontVariantNumeric:"tabular-nums",letterSpacing:-1,lineHeight:1}}>{timeStr}</div>
+          <div style={{fontSize:11,fontWeight:700,
+            color:expired?"#fff":color,
+            background:expired?C.err:color+"22",
+            borderRadius:999,padding:"2px 10px",marginTop:2,
+            border:`1px solid ${expired?C.err:color+"55"}`}}>
+            {expired?"Expirado":pct>50?"Em curso":pct>15?"A terminar":"Urgente"}
+          </div>
+        </div>
       </div>
-      <div style={{height:8,borderRadius:999,background:C.bg3,overflow:"hidden"}}>
-        <div style={{height:"100%",borderRadius:999,background:color,
-          width:pct+"%",
-          transition:"width 1s linear, background .4s"}}/>
+      <div style={{fontSize:12,color:expired?C.err:C.text3,fontWeight:600,marginTop:2,textAlign:"center"}}>
+        {subLabel}
       </div>
-      {rem>0&&rem<600&&(
-        <div style={{fontSize:11,color:C.warn,fontWeight:600,marginTop:5,textAlign:"right"}}>
+      {rem>0&&rem<600&&!expired&&(
+        <div style={{fontSize:11,color:C.warn,fontWeight:700,marginTop:4,
+          background:C.warnBg,borderRadius:999,padding:"3px 12px",
+          border:`1px solid ${C.warnBd}`}}>
           ⚠ Menos de 10 minutos
         </div>
       )}
@@ -2105,7 +2198,7 @@ const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,
         </div>
         <div style={{borderTop:`1.5px dashed ${C.border}`,paddingTop:20}}>
           {/* ── Timer circular estilo Via Verde ── */}
-          <MiniCountdown rem={rem} cdTotal={state.cdTotal||0} barColor={barColor} remLabel={remLabel} expired={rem<=0}/>
+          <CircularTimer rem={rem} cdTotal={state.cdTotal||0} barColor={barColor} expired={rem<=0}/>
         </div>
       </div>
 
@@ -2637,47 +2730,86 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     setResult({type:isActive?(wrongZone?"wrongzone":"valid"):"expired",plate:raw,sess:active,rem});
   };
 
-  /* ── Tenta reconhecer matrícula a partir de texto OCR bruto ── */
+  /* ── Tenta reconhecer matrícula a partir de texto OCR bruto ──
+     Estratégia: múltiplos candidatos × múltiplas substituições OCR        ── */
   const tryPlate=(raw)=>{
-    const s=raw.toUpperCase().replace(/[^A-Z0-9]/g,"");
-    if(!s||s.length<4||s.length>10)return null;
-    // Directo
-    let r=normalisePlate(s);if(r)return r;
-    // O↔0 (confusão OCR muito comum)
-    r=normalisePlate(s.replace(/O/g,"0"));if(r)return r;
-    r=normalisePlate(s.replace(/0/g,"O"));if(r)return r;
-    // I↔1
-    r=normalisePlate(s.replace(/I/g,"1"));if(r)return r;
-    r=normalisePlate(s.replace(/1/g,"I"));if(r)return r;
-    // S↔5, B↔8, Z↔2, G↔6 (outras confusões comuns)
-    r=normalisePlate(s.replace(/S/g,"5").replace(/B/g,"8").replace(/Z/g,"2"));if(r)return r;
+    if(!raw)return null;
+    // Normaliza: maiúsculas, substitui pontos/traços/espaços por nada
+    const clean=raw.toUpperCase();
+    // Candidatos gerados a partir do texto bruto
+    const candidates=new Set();
+    // 1. Texto limpo directo
+    const stripped=clean.replace(/[^A-Z0-9]/g,"");
+    if(stripped.length>=4)candidates.add(stripped);
+    // 2. Substituir separadores comuns (ponto, traço, espaço) → manter só alfanum
+    candidates.add(clean.replace(/[·.\-\s]/g,""));
+    // 3. Janela deslizante de 6 chars — apanha "71 68 QD" mesmo com lixo à volta
+    const win6=clean.replace(/[^A-Z0-9]/g,"");
+    for(let i=0;i<=win6.length-6;i++)candidates.add(win6.slice(i,i+6));
+    // 4. Se o texto bruto já tem separadores tipo "71-68-QD" ou "71 68 QD", concatenar grupos
+    const groups=clean.match(/[A-Z0-9]+/g)||[];
+    if(groups.length>=2)candidates.add(groups.join(""));
+    if(groups.length>=2)candidates.add(groups.slice(0,3).join(""));
+    // Tentar cada candidato com várias substituições OCR
+    const ocr=[
+      s=>s,
+      s=>s.replace(/O/g,"0"),
+      s=>s.replace(/0/g,"O"),
+      s=>s.replace(/I/g,"1"),
+      s=>s.replace(/1/g,"I"),
+      s=>s.replace(/S/g,"5"),
+      s=>s.replace(/B/g,"8"),
+      s=>s.replace(/Z/g,"2"),
+      s=>s.replace(/Q/g,"0").replace(/D/g,"0"),  // Q→0 D→0 para dígitos
+      s=>s.replace(/O/g,"0").replace(/I/g,"1").replace(/S/g,"5").replace(/B/g,"8"),
+      s=>s.replace(/0/g,"O").replace(/1/g,"I"),
+    ];
+    for(const c of candidates){
+      if(!c||c.length<4||c.length>10)continue;
+      for(const fn of ocr){
+        const r=normalisePlate(fn(c));if(r)return r;
+      }
+    }
     return null;
   };
 
-  /* ── Prepara canvas com pré-processamento de imagem ── */
-  const prepareFrame=(video,scale,cropTop,cropFrac,rotate180)=>{
+  /* ── Prepara canvas com pré-processamento optimizado para matrículas PT ──
+     Matrículas PT: fundo branco, texto preto grande, separador ponto,
+     faixa azul EU à esquerda (~10% largura) + faixa amarela direita (~8%)
+     Estratégia: recortar zona central branca, ampliar 3×, binarizar       ── */
+  const prepareFrame=(video,scale,cropTop,cropFrac,rotate180,cropSides=true)=>{
     const vw=video.videoWidth,vh=video.videoHeight;
     const cropY=Math.round(vh*cropTop),cropH=Math.round(vh*cropFrac);
+    // Recortar faixas laterais (EU azul ~12% + amarela ~10%) para PT puro
+    const sideL=cropSides?Math.round(vw*0.12):0;
+    const sideR=cropSides?Math.round(vw*0.10):0;
+    const srcW=vw-sideL-sideR;
+    const PAD=20; // padding branco à volta para Tesseract
     const cvs=document.createElement("canvas");
-    cvs.width=vw*scale;cvs.height=cropH*scale;
+    cvs.width=srcW*scale+PAD*2;cvs.height=cropH*scale+PAD*2;
     const ctx=cvs.getContext("2d",{willReadFrequently:true});
+    // Fundo branco
+    ctx.fillStyle="#fff";ctx.fillRect(0,0,cvs.width,cvs.height);
     if(rotate180){
+      ctx.save();
       ctx.translate(cvs.width,cvs.height);ctx.rotate(Math.PI);
+      ctx.filter="grayscale(1) contrast(4) brightness(1.1)";
+      ctx.drawImage(video,sideL,cropY,srcW,cropH,PAD,PAD,srcW*scale,cropH*scale);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.filter="grayscale(1) contrast(4) brightness(1.1)";
+      ctx.drawImage(video,sideL,cropY,srcW,cropH,PAD,PAD,srcW*scale,cropH*scale);
+      ctx.restore();
     }
-    ctx.save();
-    const sx=rotate180?-scale:scale,sy=rotate180?-scale:scale;
-    ctx.scale(Math.abs(sx),Math.abs(sy));
-    ctx.filter="grayscale(1) contrast(3) brightness(1.2)";
-    ctx.drawImage(video,0,cropY,vw,cropH,0,0,vw,cropH);
-    ctx.restore();
-    // Threshold adaptativo — preto/branco puro
+    // Threshold adaptativo com dois passes (apanha fundo claro e fundo escuro)
     const id=ctx.getImageData(0,0,cvs.width,cvs.height);
     const d=id.data;
-    // Calcular brilho médio para threshold adaptativo
-    let sum=0;
-    for(let i=0;i<d.length;i+=16)sum+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-    const avg=sum/(d.length/16);
-    const thr=Math.min(Math.max(avg*0.85,100),180);
+    let sum=0,cnt=0;
+    for(let i=0;i<d.length;i+=16){sum+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];cnt++;}
+    const avg=sum/cnt;
+    // Matrículas PT: fundo claro → threshold mais alto para cortar bem
+    const thr=avg>160?Math.min(avg*0.70,200):Math.min(Math.max(avg*0.85,80),170);
     for(let i=0;i<d.length;i+=4){
       const lum=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
       const v=lum>thr?255:0;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
@@ -2686,7 +2818,8 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     return cvs;
   };
 
-  /* ── Carrega Tesseract.js — dois workers em paralelo ── */
+  /* ── Carrega Tesseract.js — 2 workers: PSM7 (linha) + PSM8 (palavra) ── */
+  const workerRef2=useRef(null); // segundo worker PSM8
   const loadOCR=async()=>{
     if(workerRef.current)return true;
     try{
@@ -2698,68 +2831,104 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
         });
       }
       setCamTxt("A carregar OCR...");
-      // PSM 7 = linha única de texto (melhor para matrículas com traços)
-      const w=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
-      await w.setParameters({
-        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-",
+      const WHITELIST="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      // Worker 1: PSM 7 = linha única (bom para texto na horizontal)
+      const w1=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
+      await w1.setParameters({
+        tessedit_char_whitelist:WHITELIST,
         tessedit_pageseg_mode:"7",
         preserve_interword_spaces:"0",
+        tessedit_do_invert:"0",
       });
-      workerRef.current=w;
+      workerRef.current=w1;
+      // Worker 2: PSM 8 = palavra única (mais agressivo, melhor para matrícula isolada)
+      const w2=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
+      await w2.setParameters({
+        tessedit_char_whitelist:WHITELIST,
+        tessedit_pageseg_mode:"8",
+        preserve_interword_spaces:"0",
+        tessedit_do_invert:"0",
+      });
+      workerRef2.current=w2;
       setOcrReady(true);
       setCamTxt("Aponte a câmara para a matrícula");
       return true;
     }catch(e){console.warn("OCR falhou",e);return false;}
   };
 
-  /* ── Loop de análise — a cada 900ms ── */
+  /* ── Loop de análise — a cada 600ms, debounce 2 leituras consistentes ── */
+  const pendingRef=useRef({plate:null,count:0});
   const ocrLoop=async()=>{
     if(busyRef.current||!workerRef.current||!videoRef.current||!videoRef.current.videoWidth){
-      rafRef.current=setTimeout(ocrLoop,900);return;
+      rafRef.current=setTimeout(ocrLoop,600);return;
     }
     busyRef.current=true;
     try{
       const video=videoRef.current;
       let found=null;
-
-      // Tentativas: 3 zonas de crop × 2 orientações (normal + 180°) × variações O/0
+      // Crops: (cropTop, cropFrac, rotate180, cropSides)
+      // Mais tentativas, mais centradas, usando recorte lateral para PT
       const crops=[
-        [0.30,0.40,false],  // centro-superior normal
-        [0.35,0.30,false],  // centro normal
-        [0.55,0.30,false],  // centro-inferior normal
-        [0.30,0.40,true],   // centro-superior invertido
-        [0.35,0.30,true],   // centro invertido
+        [0.25,0.50,false,true],   // centro-alto, recorte lateral
+        [0.35,0.35,false,true],   // centro, recorte lateral
+        [0.40,0.40,false,false],  // centro, sem recorte (placas não-PT)
+        [0.50,0.35,false,true],   // centro-baixo, recorte lateral
+        [0.25,0.50,true,true],    // invertido, recorte lateral
+        [0.35,0.35,true,false],   // invertido, sem recorte
       ];
-
-      for(const [top,frac,rot] of crops){
+      const runOCR=async(cvs)=>{
+        // Correr ambos workers em paralelo
+        const results=await Promise.allSettled([
+          workerRef.current.recognize(cvs),
+          workerRef2.current?workerRef2.current.recognize(cvs):Promise.reject()
+        ]);
+        const texts=results
+          .filter(r=>r.status==="fulfilled")
+          .map(r=>r.value.data.text);
+        return texts;
+      };
+      for(const [top,frac,rot,sides] of crops){
         if(found)break;
         try{
-          const cvs=prepareFrame(video,2,top,frac,rot);
-          const {data:{text}}=await workerRef.current.recognize(cvs);
-          // Tentar cada palavra/linha separadamente
-          const candidates=[
-            text.replace(/[\n\r]/g," "),
-            ...text.split(/[\n\r\s]+/)
-          ].map(s=>s.trim()).filter(s=>s.length>=4);
-          for(const c of candidates){
-            const n=tryPlate(c);
-            if(n){found=n;break;}
+          const cvs=prepareFrame(video,3,top,frac,rot,sides);
+          const texts=await runOCR(cvs);
+          for(const text of texts){
+            if(found)break;
+            // Gerar candidatos: texto completo + linhas + palavras
+            const lines=[
+              text.replace(/[\n\r]/g," ").trim(),
+              ...text.split(/[\n\r]+/).map(l=>l.trim())
+            ].filter(l=>l.length>=4);
+            for(const line of lines){
+              const n=tryPlate(line);
+              if(n){found=n;break;}
+            }
           }
         }catch{}
       }
-
-      if(found&&found!==lastFoundRef.current){
-        lastFoundRef.current=found;
-        setPlate(found);setCamTxt("✓ "+found);setCamOk(true);setScanning(true);
-        toast(t.opDetected+" "+found);
-        setTimeout(()=>check(found),300);
-        await new Promise(r=>setTimeout(r,3500));
-        setScanning(false);lastFoundRef.current=null;
-        setCamTxt("Aponte a câmara para a matrícula");setCamOk(false);
+      // Debounce: aceitar só se aparecer 2× seguidas (evita falsos positivos)
+      if(found){
+        const p=pendingRef.current;
+        if(p.plate===found){
+          p.count++;
+          if(p.count>=2&&found!==lastFoundRef.current){
+            lastFoundRef.current=found;pendingRef.current={plate:null,count:0};
+            setPlate(found);setCamTxt("✓ "+found);setCamOk(true);setScanning(true);
+            toast(t.opDetected+" "+found);
+            setTimeout(()=>check(found),300);
+            await new Promise(r=>setTimeout(r,3000));
+            setScanning(false);lastFoundRef.current=null;
+            setCamTxt("Aponte a câmara para a matrícula");setCamOk(false);
+          }
+        } else {
+          pendingRef.current={plate:found,count:1};
+        }
+      } else {
+        if(pendingRef.current.count>0)pendingRef.current={plate:null,count:0};
       }
     }catch{}
     busyRef.current=false;
-    rafRef.current=setTimeout(ocrLoop,900);
+    rafRef.current=setTimeout(ocrLoop,600);
   };
 
   const startCam=async()=>{
@@ -2780,6 +2949,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     clearTimeout(rafRef.current);
     if(streamRef.current)streamRef.current.getTracks().forEach(tr=>tr.stop());
     streamRef.current=null;busyRef.current=false;
+    pendingRef.current={plate:null,count:0};
   };
 
   useEffect(()=>{if(mode==="camera")startCam();else stopCam();},[mode]);
