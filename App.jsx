@@ -1232,39 +1232,8 @@ const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
             letterSpacing:1,color:C.text3,marginBottom:10}}>
             Duração
           </div>
-          {/* Preço em destaque */}
-          <div style={{textAlign:"center",marginBottom:12}}>
-            <div style={{fontSize:36,fontWeight:900,color:z.color,letterSpacing:-1,lineHeight:1}}>
-              {final.toFixed(2).replace(".",",")} €
-            </div>
-            {disc>0&&(
-              <div style={{fontSize:11,color:C.ok,fontWeight:700,marginTop:4}}>
-                Desconto de {disc}% aplicado
-              </div>
-            )}
-          </div>
-          {/* Drum picker */}
-          <div style={{...card({background:C.surface2}),padding:"0",overflow:"hidden",marginBottom:12}}>
-            <DrumPicker items={OPTIONS} selectedIndex={idx} onChange={setIdx}/>
-          </div>
-          {/* Pills de atalho */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-            {PILLS.map(({m,l})=>{
-              const pidx=OPTIONS.findIndex(o=>o.mins===m);
-              const sel=idx===pidx;
-              return(
-                <button key={m} onClick={()=>setIdx(pidx)}
-                  style={{minHeight:44,padding:"10px 4px",borderRadius:14,border:"none",
-                    fontFamily:"inherit",fontSize:11,fontWeight:700,cursor:"pointer",
-                    background:sel?z.color:C.bg3,
-                    color:sel?"#fff":C.text2,
-                    transition:"all .18s",lineHeight:1.2,
-                    boxShadow:sel?`0 2px 8px ${z.color}44`:"none"}}>
-                  {l}
-                </button>
-              );
-            })}
-          </div>
+          {/* Arc Duration Picker */}
+          <ArcDurationPicker mins={mins} onChange={m=>{const ni=OPTIONS.findIndex(o=>o.mins===m);if(ni>=0)setIdx(ni);}} zoneColor={z?z.color:C.green} total={total} disc={disc} base={base}/>
         </div>
 
         {/* CTA */}
@@ -1616,46 +1585,8 @@ const TimeScreen=({goTo,state,setState,lang,setLang,t,user})=>{
 
         {/* Picker card */}
         <div style={{...card(),padding:"24px 20px 20px",marginBottom:16}}>
-          {/* Price display */}
-          <div style={{textAlign:"center",marginBottom:20}}>
-            <div style={{fontSize:42,fontWeight:800,color:C.green,letterSpacing:-2,lineHeight:1}}>
-              {fmtEur(total)}
-            </div>
-            {disc>0&&(
-              <div style={{fontSize:13,color:C.ok,fontWeight:600,marginTop:6,
-                display:"inline-flex",alignItems:"center",gap:5,background:C.okBg,
-                borderRadius:999,padding:"4px 12px",border:`1px solid ${C.okBd}`}}>
-                Poupa {fmtEur(base*(disc/100))} · {disc}% desconto
-              </div>
-            )}
-          </div>
-
-          {/* Drum picker */}
-          <div style={{...card({background:C.surface2}),padding:"0",overflow:"hidden",marginBottom:16}}>
-            <DrumPicker items={OPTIONS} selectedIndex={idx} onChange={setIdx}/>
-          </div>
-
-          {/* Fitts: pills dispostas em grelha 4 colunas — alvos maiores, sem wrap */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-            {PILLS.map(({m,l})=>{
-              const pidx=OPTIONS.findIndex(o=>o.mins===m);
-              const sel=idx===pidx;
-              return(
-                <button key={m} onClick={()=>setIdx(pidx)}
-                  style={{
-                    // Fitts: minHeight 44px — zona de toque confortável para polegar
-                    minHeight:44,padding:"10px 4px",borderRadius:14,border:"none",
-                    fontFamily:"inherit",fontSize:11,fontWeight:700,cursor:"pointer",
-                    background:sel?C.green:C.bg3,
-                    color:sel?"#fff":C.text2,
-                    transition:"all .18s",lineHeight:1.2,
-                    boxShadow:sel?`0 2px 8px rgba(61,122,58,.25)`:"none",
-                  }}>
-                  {l}
-                </button>
-              );
-            })}
-          </div>
+          {/* Arc Duration Picker */}
+          <ArcDurationPicker mins={mins} onChange={m=>{const ni=OPTIONS.findIndex(o=>o.mins===m);if(ni>=0)setIdx(ni);}} zoneColor={C.green} total={total} disc={disc} base={base}/>
         </div>
 
         {/* Hick's: resumo mínimo — só o que o utilizador ainda não viu (hora de fim + total).
@@ -1803,82 +1734,179 @@ const PaymentScreen=({goTo,state,setState,onPay,lang,setLang,t})=>{
 // ─────────────────────────────────────────────
 //  CIRCULAR TIMER — estilo Via Verde
 // ─────────────────────────────────────────────
-const CircularTimer=({pct,rem,barColor,remLabel,state,fmtTime,t})=>{
-  const R=84,STROKE=10,CXY=100,circ=2*Math.PI*R;
-  const fill=circ*(1-(Math.min(100,Math.max(0,pct))/100));
-  const rh=Math.floor(rem/3600),rmm=Math.floor((rem%3600)/60),rs=Math.floor(rem%60);
-  const bigLabel=rem<=0?"00:00"
-    :rh>=1?`${String(rh).padStart(2,"0")}:${String(rmm).padStart(2,"0")}`
-    :`${String(rmm).padStart(2,"0")}:${String(rs).padStart(2,"0")}`;
-  const subLabel=rem<=0?"Sessão terminada"
-    :rh>=1?`${rmm}m ${String(rs).padStart(2,"0")}s restantes`
-    :`${String(rmm).padStart(2,"0")}m ${String(rs).padStart(2,"0")}s restantes`;
-  const totalMins=Math.round((state.cdTotal||0)/60);
-  const paidLabel=totalMins>=60
-    ?`${Math.floor(totalMins/60)}h${totalMins%60>0?" "+totalMins%60+"m":""} pagos`
-    :`${totalMins}min pagos`;
-  const arcColor=rem<=0?C.err:barColor;
+const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
+  // Options: 15min..8h in 15min steps
+  const OPTIONS=useMemo(()=>{
+    const out=[];
+    for(let m=15;m<=480;m+=15){
+      const h=Math.floor(m/60),rm=m%60;
+      let label;
+      if(h===0)label=`${m} min`;
+      else if(rm===0)label=h===1?"1 hora":`${h} horas`;
+      else label=`${h}h ${String(rm).padStart(2,"0")}`;
+      out.push({mins:m,label});
+    }
+    return out;
+  },[]);
+
+  const idx=OPTIONS.findIndex(o=>o.mins===mins)||3;
+  const total_opts=OPTIONS.length; // 32 steps (15..480)
+
+  // Arc geometry
+  const CX=140,CY=148,R=110,STROKE=18;
+  const START_ANG=-215, END_ANG=35; // degrees — bottom-left to bottom-right
+  const SWEEP=END_ANG-START_ANG; // 250 deg
+  const circ=2*Math.PI*R;
+  const arcLen=(SWEEP/360)*circ;
+  const pct=(idx)/(total_opts-1);
+
+  // Convert angle (deg) to SVG arc point
+  const pt=(deg)=>{
+    const r=deg*Math.PI/180;
+    return{x:CX+R*Math.cos(r),y:CY+R*Math.sin(r)};
+  };
+
+  // Build arc path from START_ANG to current angle
+  const curAng=START_ANG+pct*SWEEP;
+  const startPt=pt(START_ANG);
+  const curPt=pt(curAng);
+  const large=pct*SWEEP>180?1:0;
+
+  // Track touch/mouse for drag
+  const svgRef=useRef(null);
+  const dragging=useRef(false);
+
+  const angleFromCenter=(cx,cy,ex,ey)=>{
+    return Math.atan2(ey-cy,ex-cx)*180/Math.PI;
+  };
+
+  const angleToIdx=(ang)=>{
+    // Normalise angle to 0-SWEEP range starting at START_ANG
+    let a=ang-START_ANG;
+    while(a<0)a+=360;
+    while(a>360)a-=360;
+    if(a>SWEEP+10)return null; // outside arc
+    const frac=Math.max(0,Math.min(1,a/SWEEP));
+    return Math.round(frac*(total_opts-1));
+  };
+
+  const handlePos=(svg,clientX,clientY)=>{
+    const rect=svg.getBoundingClientRect();
+    // Scale from SVG viewBox (0,0,280,200) to actual rendered size
+    const scaleX=280/rect.width, scaleY=200/rect.height;
+    const ex=(clientX-rect.left)*scaleX;
+    const ey=(clientY-rect.top)*scaleY;
+    const ang=angleFromCenter(CX,CY,ex,ey);
+    const ni=angleToIdx(ang);
+    if(ni!=null)onChange(OPTIONS[ni].mins);
+  };
+
+  const PILLS=[{m:15,l:"15 min"},{m:60,l:"1h"},{m:120,l:"2h"},{m:240,l:"4h"}];
+
+  const color=zoneColor||C.green;
+
   return(
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",paddingBottom:4}}>
-      <div style={{position:"relative",width:210,height:210}}>
-        <svg viewBox="0 0 200 200" width="210" height="210" style={{transform:"rotate(-90deg)"}}>
-          <circle cx={CXY} cy={CXY} r={R} fill="none" stroke={C.bg3} strokeWidth={STROKE} strokeLinecap="round"/>
-          <circle cx={CXY} cy={CXY} r={R} fill="none" stroke={arcColor}
-            strokeWidth={STROKE} strokeLinecap="round"
-            strokeDasharray={circ} strokeDashoffset={fill}
-            style={{transition:"stroke-dashoffset 1s linear,stroke .4s"}}/>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",userSelect:"none"}}>
+      {/* SVG Arc */}
+      <div style={{position:"relative",width:"100%",maxWidth:280,touchAction:"none"}}
+        onMouseDown={e=>{dragging.current=true;handlePos(svgRef.current,e.clientX,e.clientY);}}
+        onMouseMove={e=>{if(dragging.current)handlePos(svgRef.current,e.clientX,e.clientY);}}
+        onMouseUp={()=>{dragging.current=false;}}
+        onMouseLeave={()=>{dragging.current=false;}}
+        onTouchStart={e=>{dragging.current=true;const t=e.touches[0];handlePos(svgRef.current,t.clientX,t.clientY);}}
+        onTouchMove={e=>{e.preventDefault();if(dragging.current){const t=e.touches[0];handlePos(svgRef.current,t.clientX,t.clientY);}}}
+        onTouchEnd={()=>{dragging.current=false;}}
+      >
+        <svg ref={svgRef} viewBox="0 0 280 200" style={{width:"100%",display:"block"}}>
+          {/* Track */}
+          <path
+            fill="none" stroke={C.bg3} strokeWidth={STROKE} strokeLinecap="round"
+            d={`M ${pt(START_ANG).x} ${pt(START_ANG).y} A ${R} ${R} 0 1 1 ${pt(END_ANG).x} ${pt(END_ANG).y}`}
+          />
+          {/* Filled arc */}
+          {pct>0&&(
+            <path
+              fill="none" stroke={color} strokeWidth={STROKE} strokeLinecap="round"
+              style={{transition:"d .12s ease"}}
+              d={`M ${startPt.x} ${startPt.y} A ${R} ${R} 0 ${large} 1 ${curPt.x} ${curPt.y}`}
+            />
+          )}
+          {/* Thumb circle */}
+          <circle cx={curPt.x} cy={curPt.y} r={STROKE*1.1} fill={color}
+            style={{filter:`drop-shadow(0 2px 6px ${color}88)`,transition:"cx .12s,cy .12s"}}/>
+          <circle cx={curPt.x} cy={curPt.y} r={STROKE*0.45} fill="#fff"
+            style={{transition:"cx .12s,cy .12s"}}/>
+          {/* Centre: price + label */}
+          <text x={CX} y={CY-22} textAnchor="middle"
+            style={{fontSize:38,fontWeight:900,fill:color,fontFamily:"Sora,sans-serif",letterSpacing:-1}}>
+            {total!=null?total.toFixed(2).replace(".",",")+"€":"—"}
+          </text>
+          {disc>0&&(
+            <text x={CX} y={CY+4} textAnchor="middle"
+              style={{fontSize:11,fill:C.ok,fontFamily:"Sora,sans-serif",fontWeight:700}}>
+              -{disc}% desconto
+            </text>
+          )}
+          <text x={CX} y={CY+26} textAnchor="middle"
+            style={{fontSize:22,fontWeight:800,fill:C.text,fontFamily:"Sora,sans-serif",letterSpacing:-.5}}>
+            {OPTIONS[idx]?.label||"—"}
+          </text>
         </svg>
-        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",
-          alignItems:"center",justifyContent:"center",gap:1}}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
-            stroke={arcColor} strokeWidth="2.2" strokeLinecap="round" style={{marginBottom:4}}>
-            <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 15.5"/>
-          </svg>
-          <div style={{fontSize:36,fontWeight:800,color:rem<=0?C.err:C.text,
-            letterSpacing:-2,lineHeight:1,fontVariantNumeric:"tabular-nums"}}>
-            {bigLabel}
-          </div>
-          <div style={{marginTop:6,background:rem<=0?C.errBg:C.greenL,
-            border:`1px solid ${rem<=0?C.errBd:C.okBd}`,
-            borderRadius:999,padding:"3px 16px",
-            fontSize:14,fontWeight:700,color:rem<=0?C.err:C.green}}>
-            {fmtEur(state.total||0)}
-          </div>
-        </div>
       </div>
-      <div style={{fontSize:12,color:C.text3,fontWeight:500,marginTop:-4,marginBottom:12}}>{subLabel}</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0,
-        width:"100%",borderTop:`1px solid ${C.border}`,paddingTop:16}}>
-        <div style={{textAlign:"center",borderRight:`1px solid ${C.border}`,paddingRight:8}}>
-          <div style={{fontSize:10,color:C.text3,fontWeight:700,textTransform:"uppercase",
-            letterSpacing:.6,marginBottom:4}}>{t.start||"Início"}</div>
-          <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:-0.5,lineHeight:1}}>
-            {fmtTime(state.startTime||new Date())}
-          </div>
-          <div style={{fontSize:11,color:C.text3,marginTop:3}}>
-            {new Date(state.startTime||Date.now()).toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric"})}
-          </div>
-        </div>
-        <div style={{textAlign:"center",paddingLeft:8}}>
-          <div style={{fontSize:10,color:C.text3,fontWeight:700,textTransform:"uppercase",
-            letterSpacing:.6,marginBottom:4}}>{t.validUntil||"Válido até"}</div>
-          <div style={{fontSize:22,fontWeight:800,color:arcColor,letterSpacing:-0.5,lineHeight:1}}>
-            {fmtTime(state.endTime||new Date())}
-          </div>
-          <div style={{fontSize:11,color:C.text3,marginTop:3}}>
-            {new Date(state.endTime||Date.now()).toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric"})}
-          </div>
-        </div>
-      </div>
-      <div style={{fontSize:12,color:C.text3,fontWeight:500,marginTop:10,
-        display:"flex",alignItems:"center",gap:5}}>
-        <span style={{width:6,height:6,borderRadius:"50%",background:arcColor,display:"inline-block"}}/>
-        {paidLabel}
+      {/* Pill shortcuts */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,width:"100%",marginTop:4}}>
+        {PILLS.map(({m,l})=>{
+          const sel=mins===m;
+          return(
+            <button key={m} onClick={()=>onChange(m)}
+              style={{minHeight:42,padding:"10px 4px",borderRadius:14,border:"none",
+                fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",
+                background:sel?color:C.bg3,
+                color:sel?"#fff":C.text2,
+                transition:"all .15s",
+                boxShadow:sel?`0 2px 8px ${color}44`:"none"}}>
+              {l}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 };
 
+// ─────────────────────────────────────────────
+//  MINI COUNTDOWN BAR — recibo / ecrã de sucesso
+// ─────────────────────────────────────────────
+const MiniCountdown=({rem,cdTotal,barColor,remLabel,expired})=>{
+  const pct=cdTotal>0?Math.max(0,Math.min(100,(rem/cdTotal)*100)):0;
+  const rh=Math.floor(rem/3600),rmm=Math.floor((rem%3600)/60),rs=Math.floor(rem%60);
+  const timeStr=rem<=0?"00:00"
+    :rh>=1?`${String(rh).padStart(2,"0")}:${String(rmm).padStart(2,"0")}`
+    :`${String(rmm).padStart(2,"0")}:${String(rs).padStart(2,"0")}`;
+  const color=rem<=0?C.err:barColor;
+  return(
+    <div style={{padding:"14px 0 4px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <span style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:"uppercase",letterSpacing:.5}}>
+          {rem<=0?"Sessão terminada":"Tempo restante"}
+        </span>
+        <span style={{fontSize:20,fontWeight:800,color,fontVariantNumeric:"tabular-nums",letterSpacing:-0.5}}>
+          {timeStr}
+        </span>
+      </div>
+      <div style={{height:8,borderRadius:999,background:C.bg3,overflow:"hidden"}}>
+        <div style={{height:"100%",borderRadius:999,background:color,
+          width:pct+"%",
+          transition:"width 1s linear, background .4s"}}/>
+      </div>
+      {rem>0&&rem<600&&(
+        <div style={{fontSize:11,color:C.warn,fontWeight:600,marginTop:5,textAlign:"right"}}>
+          ⚠ Menos de 10 minutos
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────
 //  SUCCESS / RECEIPT
@@ -2087,7 +2115,7 @@ const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,
         </div>
         <div style={{borderTop:`1.5px dashed ${C.border}`,paddingTop:20}}>
           {/* ── Timer circular estilo Via Verde ── */}
-          <CircularTimer pct={pct} rem={rem} barColor={barColor} remLabel={remLabel} state={state} fmtTime={fmtTime} t={t}/>
+          <MiniCountdown rem={rem} cdTotal={state.cdTotal||0} barColor={barColor} remLabel={remLabel} expired={rem<=0}/>
         </div>
       </div>
 
