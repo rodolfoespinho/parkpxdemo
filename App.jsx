@@ -2845,8 +2845,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
         try{
           const cvs=prepareFrame(video,top,frac,flip);
           const {data:{text}}=await workerRef.current.recognize(cvs);
-          const raw=text.replace(/[
-]/g," ").trim();
+          const raw=text.replace(/[\n\r]/g," ").trim();
           if(raw.length>=3)setCamTxt("OCR: "+raw.slice(0,28));
           // Tentar linha completa + cada palavra separada
           const candidates=[raw,...raw.split(/\s+/)].filter(s=>s.length>=4);
