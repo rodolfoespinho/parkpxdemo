@@ -2773,25 +2773,31 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     return null;
   };
 
-  /* ── prepareFrame: grayscale + contraste + binarize — simples e rápido ── */
-  const prepareFrame=(video,cropTop,cropFrac,flip=false)=>{
+  /* ── prepareFrame: crop da zona guia, upscale 3x, binarize ── */
+  const prepareFrame=(video)=>{
     const vw=video.videoWidth,vh=video.videoHeight;
-    const cropY=Math.round(vh*cropTop),cropH=Math.round(vh*cropFrac);
-    const SCALE=2,PAD=16;
+    // Zona guia: faixa central horizontal, 20% altura, largura quase total
+    // Corresponde ao rectângulo branco visível no overlay
+    const srcX=Math.round(vw*0.04);
+    const srcW=Math.round(vw*0.92);
+    const srcY=Math.round(vh*0.38);
+    const srcH=Math.round(vh*0.24);
+    const SCALE=3,PAD=20;
     const cvs=document.createElement("canvas");
-    cvs.width=vw*SCALE+PAD*2;cvs.height=cropH*SCALE+PAD*2;
+    cvs.width=srcW*SCALE+PAD*2;
+    cvs.height=srcH*SCALE+PAD*2;
     const ctx=cvs.getContext("2d",{willReadFrequently:true});
     ctx.fillStyle="#fff";ctx.fillRect(0,0,cvs.width,cvs.height);
-    ctx.save();
-    if(flip){ctx.translate(cvs.width,cvs.height);ctx.rotate(Math.PI);}
-    ctx.filter="grayscale(1) contrast(3.5) brightness(1.15)";
-    ctx.drawImage(video,0,cropY,vw,cropH,PAD,PAD,vw*SCALE,cropH*SCALE);
-    ctx.restore();
+    ctx.filter="grayscale(1) contrast(4) brightness(1.1)";
+    ctx.drawImage(video,srcX,srcY,srcW,srcH,PAD,PAD,srcW*SCALE,srcH*SCALE);
+    ctx.filter="none";
+    // Binarização adaptativa
     const id=ctx.getImageData(0,0,cvs.width,cvs.height);
     const d=id.data;
     let s=0,n=0;
     for(let i=0;i<d.length;i+=16){s+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];n++;}
-    const thr=Math.min(Math.max((s/n)*0.82,90),185);
+    const avg=s/n;
+    const thr=avg>150?avg*0.72:Math.min(avg*0.88,175);
     for(let i=0;i<d.length;i+=4){
       const l=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
       d[i]=d[i+1]=d[i+2]=l>thr?255:0;d[i+3]=255;
@@ -2800,7 +2806,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     return cvs;
   };
 
-  /* ── loadOCR: 1 worker PSM7 (linha) — rápido e fiável ── */
+  /* ── loadOCR: PSM 7 (linha) + PSM 13 (raw) ── */
   const loadOCR=async()=>{
     if(workerRef.current)return true;
     try{
@@ -2820,13 +2826,22 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
         tessedit_do_invert:"0",
       });
       workerRef.current=w;
+      // Worker 2: PSM 13 — raw line, não tenta segmentar
+      const w2=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
+      await w2.setParameters({
+        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        tessedit_pageseg_mode:"13",
+        preserve_interword_spaces:"0",
+        tessedit_do_invert:"0",
+      });
+      workerRef2.current=w2;
       setOcrReady(true);
-      setCamTxt("Aponte para a matrícula");
+      setCamTxt("Alinhe a matrícula no guia");
       return true;
     }catch(e){console.warn("OCR load failed",e);return false;}
   };
 
-  /* ── ocrLoop: simples, rápido, 500ms — lê e transcreve imediatamente ── */
+  /* ── ocrLoop: crop exacto da zona guia, mostra texto bruto ── */
   const ocrLoop=async()=>{
     if(busyRef.current||!workerRef.current||!videoRef.current){
       rafRef.current=setTimeout(ocrLoop,500);return;
@@ -2837,22 +2852,22 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     }
     busyRef.current=true;
     try{
-      // 4 crops: centro + cima + baixo + invertido
-      const crops=[[0.30,0.40,false],[0.20,0.35,false],[0.45,0.40,false],[0.30,0.40,true]];
+      const cvs=prepareFrame(video);
+      // Correr PSM7 e PSM13 em paralelo
+      const results=await Promise.allSettled([
+        workerRef.current.recognize(cvs),
+        workerRef2.current?workerRef2.current.recognize(cvs):Promise.reject()
+      ]);
       let found=null;
-      for(const [top,frac,flip] of crops){
-        if(found)break;
-        try{
-          const cvs=prepareFrame(video,top,frac,flip);
-          const {data:{text}}=await workerRef.current.recognize(cvs);
-          const raw=text.replace(/[\n\r]/g," ").trim();
-          if(raw.length>=3)setCamTxt("OCR: "+raw.slice(0,28));
-          // Tentar linha completa + cada palavra separada
-          const candidates=[raw,...raw.split(/\s+/)].filter(s=>s.length>=4);
-          for(const c of candidates){
-            const n=tryPlate(c);if(n){found=n;break;}
-          }
-        }catch(e){}
+      for(const r of results){
+        if(r.status!=="fulfilled")continue;
+        const raw=r.value.data.text.replace(/[\n\r]/g," ").trim();
+        if(raw.length>=3)setCamTxt("↳ "+raw.slice(0,32));
+        const candidates=[raw,...raw.split(/\s+/)].filter(s=>s.length>=4);
+        for(const c of candidates){
+          const n=tryPlate(c);
+          if(n&&!found){found=n;}
+        }
       }
       if(found){
         if(found!==lastFoundRef.current){
@@ -2862,12 +2877,12 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
           setTimeout(()=>check(found),200);
           await new Promise(r=>setTimeout(r,2500));
           setScanning(false);lastFoundRef.current=null;
-          setCamTxt("Aponte para a matrícula");setCamOk(false);
+          setCamTxt("Alinhe a matrícula no guia");setCamOk(false);
         }
       }
     }catch(e){}
     busyRef.current=false;
-    rafRef.current=setTimeout(ocrLoop,500);
+    rafRef.current=setTimeout(ocrLoop,600);
   };
 
     const startCam=async()=>{
@@ -3042,6 +3057,42 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
             <div style={{borderRadius:18,overflow:"hidden",background:"#000",aspectRatio:"16/9",position:"relative",marginBottom:12}}>
               <video ref={videoRef} autoPlay playsInline muted style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
               <canvas ref={canvasRef} style={{display:"none"}}/>
+              {/* Overlay: guia de alinhamento da matrícula */}
+              <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
+                {/* Escurecimento fora da zona guia */}
+                <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.45)"}}/>
+                {/* Rectângulo guia — posição corresponde ao crop: top 38%, height 24%, left 4%, width 92% */}
+                <div style={{
+                  position:"absolute",
+                  top:"38%",left:"4%",right:"4%",height:"24%",
+                  background:"transparent",
+                  boxShadow:"0 0 0 9999px rgba(0,0,0,0.45)",
+                  borderRadius:8,
+                  border:scanning?"3px solid "+C.ok:"2px solid rgba(255,255,255,0.9)",
+                  transition:"border .3s"
+                }}/>
+                {/* Cantos decorativos */}
+                {[["0%","0%","tl"],["0%","auto","bl"],["auto","0%","tr"],["auto","auto","br"]].map(([t,b,k])=>(
+                  <div key={k} style={{
+                    position:"absolute",
+                    top:t!=="auto"?"calc(38% - 2px)":undefined,
+                    bottom:b!=="auto"?"calc(38% - 2px)":undefined,
+                    left:k.endsWith("l")?"calc(4% - 2px)":undefined,
+                    right:k.endsWith("r")?"calc(4% - 2px)":undefined,
+                    width:18,height:18,
+                    borderTop:k.startsWith("t")?"3px solid #fff":undefined,
+                    borderBottom:k.startsWith("b")?"3px solid #fff":undefined,
+                    borderLeft:k.endsWith("l")?"3px solid #fff":undefined,
+                    borderRight:k.endsWith("r")?"3px solid #fff":undefined,
+                    borderRadius:k==="tl"?"3px 0 0 0":k==="tr"?"0 3px 0 0":k==="bl"?"0 0 0 3px":"0 0 3px 0"
+                  }}/>
+                ))}
+                {/* Label por cima do guia */}
+                <div style={{position:"absolute",top:"calc(38% - 22px)",left:"4%",right:"4%",
+                  textAlign:"center",color:"rgba(255,255,255,0.85)",fontSize:11,fontWeight:600,letterSpacing:.5}}>
+                  {scanning?"✓ LIDA":"ALINHE A MATRÍCULA"}
+                </div>
+              </div>
               {/* Estado em sobreposição no fundo */}
               <div style={{position:"absolute",bottom:10,left:10,right:10,
                 background:scanning?"rgba(61,122,58,.92)":"rgba(0,0,0,.75)",
@@ -3053,7 +3104,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
                   boxShadow:scanning?`0 0 6px ${C.ok}`:"none"}}/>
                 <div style={{color:"#fff",fontSize:13,fontWeight:700,
                   letterSpacing:scanning?2:.5,fontFamily:"monospace"}}>
-                  {scanning?camTxt:ocrReady?"A analisar...":camTxt}
+                  {camTxt||( ocrReady?"Alinhe a matrícula no guia":"A carregar...")}
                 </div>
               </div>
             </div>
