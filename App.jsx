@@ -2475,6 +2475,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
   const [ocrReady,setOcrReady]=useState(false);
   const videoRef=useRef(null);const streamRef=useRef(null);
   const canvasRef=useRef(null);const workerRef=useRef(null);
+  const rafRef=useRef(null);const lastFoundRef=useRef(null);const busyRef=useRef(false);
   const sessions=getAllSess();const now=new Date();
   const zoneSessions=sessions.filter(s=>s.zone===zone&&new Date(s.end)>now);
 
@@ -2516,32 +2517,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     return null;
   };
 
-  /* ── Prepara canvas com filtros para melhor OCR ── */
-  const prepareCanvas=(video,scale=2,cropZone={top:0.45,height:0.35})=>{
-    const vw=video.videoWidth,vh=video.videoHeight;
-    const cropY=Math.round(vh*cropZone.top);
-    const cropH=Math.round(vh*cropZone.height);
-    const cvs=canvasRef.current;
-    cvs.width=vw*scale;cvs.height=cropH*scale;
-    const ctx=cvs.getContext("2d",{willReadFrequently:true});
-    ctx.save();
-    ctx.scale(scale,scale);
-    ctx.filter="grayscale(1) contrast(2.5) brightness(1.15) sharpen(1)";
-    ctx.drawImage(video,0,cropY,vw,cropH,0,0,vw,cropH);
-    ctx.restore();
-    // Threshold manual para preto/branco puro
-    const id=ctx.getImageData(0,0,cvs.width,cvs.height);
-    const d=id.data;
-    for(let i=0;i<d.length;i+=4){
-      const lum=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-      const v=lum>128?255:0;
-      d[i]=d[i+1]=d[i+2]=v;
-    }
-    ctx.putImageData(id,0,0);
-    return cvs;
-  };
-
-  /* ── Carrega Tesseract.js em background ── */
+  /* ── Carrega Tesseract.js ── */
   const loadOCR=async()=>{
     if(workerRef.current)return true;
     try{
@@ -2556,13 +2532,56 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
       const w=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
       await w.setParameters({
         tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-        tessedit_pageseg_mode:"8", // PSM 8 = palavra única — melhor para matrículas
+        tessedit_pageseg_mode:"8",
         preserve_interword_spaces:"0",
       });
       workerRef.current=w;setOcrReady(true);
-      setCamTxt("Aponte para a matrícula do veículo");
+      setCamTxt("Aponte a câmara para a matrícula");
       return true;
     }catch(e){console.warn("OCR load failed",e);return false;}
+  };
+
+  /* ── Loop contínuo de OCR ── */
+  const ocrLoop=async()=>{
+    if(busyRef.current||!workerRef.current||!videoRef.current||!videoRef.current.videoWidth){
+      rafRef.current=requestAnimationFrame(ocrLoop);return;
+    }
+    busyRef.current=true;
+    try{
+      const video=videoRef.current;
+      const vw=video.videoWidth,vh=video.videoHeight;
+      // Crop zona central do frame
+      const cropY=Math.round(vh*0.35),cropH=Math.round(vh*0.30);
+      const cvs=canvasRef.current;
+      const scale=2;
+      cvs.width=vw*scale;cvs.height=cropH*scale;
+      const ctx=cvs.getContext("2d",{willReadFrequently:true});
+      ctx.save();ctx.scale(scale,scale);
+      ctx.filter="grayscale(1) contrast(2.5) brightness(1.15)";
+      ctx.drawImage(video,0,cropY,vw,cropH,0,0,vw,cropH);
+      ctx.restore();
+      // Threshold
+      const id=ctx.getImageData(0,0,cvs.width,cvs.height);
+      const d=id.data;
+      for(let i=0;i<d.length;i+=4){const lum=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];const v=lum>140?255:0;d[i]=d[i+1]=d[i+2]=v;}
+      ctx.putImageData(id,0,0);
+      const {data:{text}}=await workerRef.current.recognize(cvs);
+      const lines=[text,...text.split("\n")].map(l=>l.trim()).filter(Boolean);
+      let found=null;
+      for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
+      if(found&&found!==lastFoundRef.current){
+        lastFoundRef.current=found;
+        setPlate(found);setCamTxt("✓ "+found);setCamOk(true);setScanning(true);
+        toast(t.opDetected+" "+found);
+        setTimeout(()=>check(found),300);
+        // Pausa 3s após detectar para não fazer spam
+        await new Promise(r=>setTimeout(r,3000));
+        setScanning(false);lastFoundRef.current=null;
+        setCamTxt("Aponte a câmara para a matrícula");setCamOk(false);
+      }
+    }catch{}
+    busyRef.current=false;
+    rafRef.current=requestAnimationFrame(ocrLoop);
   };
 
   const startCam=async()=>{
@@ -2573,77 +2592,24 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
       });
       streamRef.current=stream;
       if(videoRef.current)videoRef.current.srcObject=stream;
-      setCamTxt("Aponte para a matrícula do veículo");setCamOk(true);
-      loadOCR();
+      setCamTxt("A carregar OCR...");setCamOk(false);
+      await loadOCR();
+      // Iniciar loop contínuo
+      rafRef.current=requestAnimationFrame(ocrLoop);
     }catch{setCamTxt("Câmara não disponível");setCamOk(false);}
   };
+
   const stopCam=()=>{
+    cancelAnimationFrame(rafRef.current);
     if(streamRef.current)streamRef.current.getTracks().forEach(tr=>tr.stop());
-    streamRef.current=null;
+    streamRef.current=null;busyRef.current=false;
   };
+
   useEffect(()=>{if(mode==="camera")startCam();else stopCam();},[mode]);
   useEffect(()=>()=>{
     stopCam();
     if(workerRef.current){workerRef.current.terminate().catch(()=>{});workerRef.current=null;}
   },[]);
-
-  /* ── Leitura OCR real da matrícula ── */
-  const doScan=async()=>{
-    if(scanning)return;
-    setScanning(true);setCamTxt("A reconhecer matrícula...");setCamOk(false);
-    try{
-      const video=videoRef.current;
-      if(!video||!video.videoWidth)throw new Error("sem vídeo");
-      const ready=workerRef.current?true:await loadOCR();
-      if(!ready)throw new Error("OCR indisponível");
-
-      let found=null;
-
-      // Tentativa 1: crop zona central-inferior (onde costuma estar a matrícula)
-      if(!found){
-        const cvs=prepareCanvas(video,2,{top:0.45,height:0.35});
-        const {data:{text}}=await workerRef.current.recognize(cvs);
-        const lines=[text,...text.split("\n")].map(l=>l.trim()).filter(Boolean);
-        for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
-      }
-
-      // Tentativa 2: crop zona superior (matrículas podem estar na frente do carro)
-      if(!found){
-        const cvs=prepareCanvas(video,2,{top:0.1,height:0.4});
-        const {data:{text}}=await workerRef.current.recognize(cvs);
-        const lines=[text,...text.split("\n")].map(l=>l.trim()).filter(Boolean);
-        for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
-      }
-
-      // Tentativa 3: frame completo com escala menor
-      if(!found){
-        const vw=video.videoWidth,vh=video.videoHeight;
-        const cvs=canvasRef.current;cvs.width=vw;cvs.height=vh;
-        const ctx=cvs.getContext("2d");
-        ctx.filter="grayscale(1) contrast(2) brightness(1.1)";
-        ctx.drawImage(video,0,0);ctx.filter="none";
-        const {data:{text}}=await workerRef.current.recognize(cvs);
-        const lines=[text,...text.split("\n")].map(l=>l.trim()).filter(Boolean);
-        for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
-      }
-
-      if(found){
-        setPlate(found);setCamTxt(found);setCamOk(true);
-        toast(t.opDetected+" "+found);
-        setTimeout(()=>check(found),300);
-      }else{
-        setCamTxt("Não identificado — centralize a matrícula e tente novamente");setCamOk(false);
-        toast("Não foi possível identificar. Aproxime a câmara da matrícula.");
-      }
-    }catch(e){
-      /* fallback demo */
-      const opts=sessions.filter(s=>new Date(s.end)>now).map(s=>s.plate);
-      const rp=opts.length?opts[Math.floor(Math.random()*opts.length)]:"AA-11-BB";
-      setPlate(rp);setCamTxt(rp);setCamOk(true);
-      toast(t.opDetected+" "+rp);
-      setTimeout(()=>check(rp),300);
-    }finally{setScanning(false);}
-  };
 
   // — ZONE SELECTION —
   if(!zone) return(
@@ -2784,44 +2750,27 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
           </div>
         )}
 
-        {/* Camera */}
+        {/* Camera — leitura contínua automática */}
         {mode==="camera"&&(
           <div style={{marginBottom:16}}>
             <div style={{borderRadius:18,overflow:"hidden",background:"#000",aspectRatio:"16/9",position:"relative",marginBottom:12}}>
               <video ref={videoRef} autoPlay playsInline muted style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
               <canvas ref={canvasRef} style={{display:"none"}}/>
-              {/* guia amarelo para posicionar matrícula */}
-              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"flex-end",justifyContent:"center",paddingBottom:"18%"}}>
-                <div style={{width:"78%",maxWidth:250,height:46,border:"2.5px solid rgba(255,210,0,.95)",
-                  borderRadius:8,boxShadow:"0 0 0 2000px rgba(0,0,0,.42)",position:"relative",overflow:"hidden"}}>
-                  <div style={{position:"absolute",left:0,right:0,height:2,
-                    background:"linear-gradient(90deg,transparent,#ffd700,transparent)",
-                    animation:"scan 1.6s ease-in-out infinite"}}/>
+              {/* Estado em sobreposição no fundo */}
+              <div style={{position:"absolute",bottom:10,left:10,right:10,
+                background:scanning?"rgba(61,122,58,.92)":"rgba(0,0,0,.75)",
+                borderRadius:10,padding:"10px 14px",
+                display:"flex",alignItems:"center",gap:10,
+                transition:"background .3s"}}>
+                <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,
+                  background:scanning?C.ok:ocrReady?"#ffd700":C.warn,
+                  boxShadow:scanning?`0 0 6px ${C.ok}`:"none"}}/>
+                <div style={{color:"#fff",fontSize:13,fontWeight:700,
+                  letterSpacing:scanning?2:.5,fontFamily:"monospace"}}>
+                  {scanning?camTxt:ocrReady?"A analisar...":camTxt}
                 </div>
               </div>
-              <div style={{position:"absolute",bottom:56,left:0,right:0,textAlign:"center"}}>
-                <span style={{color:"rgba(255,210,0,.95)",fontSize:11,fontWeight:700,letterSpacing:.8,
-                  background:"rgba(0,0,0,.55)",padding:"3px 10px",borderRadius:6}}>
-                  Alinhe a matrícula na moldura
-                </span>
-              </div>
-              {camTxt&&(
-                <div style={{position:"absolute",bottom:10,left:10,right:10,background:"rgba(0,0,0,.80)",
-                  borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,
-                    background:scanning?"#ffd700":camOk?C.ok:C.warn}}/>
-                  <div style={{color:"#fff",fontSize:13,fontWeight:700,letterSpacing:1.5,fontFamily:"monospace"}}>{camTxt}</div>
-                </div>
-              )}
             </div>
-            <button style={btnP()} onClick={doScan} disabled={scanning}>
-              {scanning?"🔍 A reconhecer...":`📷 Ler Matrícula${ocrReady?" (OCR Activo)":""}`}
-            </button>
-            {!ocrReady&&!scanning&&(
-              <div style={{fontSize:11,color:C.text3,textAlign:"center",marginTop:6}}>
-                Motor de reconhecimento a carregar...
-              </div>
-            )}
           </div>
         )}
 
