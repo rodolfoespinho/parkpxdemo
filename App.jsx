@@ -2712,8 +2712,9 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
   const [camTxt,setCamTxt]=useState("");const [camOk,setCamOk]=useState(false);
   const [ocrReady,setOcrReady]=useState(false);
   const videoRef=useRef(null);const streamRef=useRef(null);
-  const canvasRef=useRef(null);const workerRef=useRef(null);
+  const canvasRef=useRef(null);const workerRef=useRef(null);const workerRef2=useRef(null);
   const rafRef=useRef(null);const lastFoundRef=useRef(null);const busyRef=useRef(false);
+  const pendingRef=useRef({plate:null,count:0});
   const sessions=getAllSess();const now=new Date();
   const zoneSessions=sessions.filter(s=>s.zone===zone&&new Date(s.end)>now);
 
@@ -2819,7 +2820,6 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
   };
 
   /* ── Carrega Tesseract.js — 2 workers: PSM7 (linha) + PSM8 (palavra) ── */
-  const workerRef2=useRef(null); // segundo worker PSM8
   const loadOCR=async()=>{
     if(workerRef.current)return true;
     try{
@@ -2857,7 +2857,6 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
   };
 
   /* ── Loop de análise — a cada 600ms, debounce 2 leituras consistentes ── */
-  const pendingRef=useRef({plate:null,count:0});
   const ocrLoop=async()=>{
     if(busyRef.current||!workerRef.current||!videoRef.current||!videoRef.current.videoWidth){
       rafRef.current=setTimeout(ocrLoop,600);return;
@@ -2866,6 +2865,8 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     try{
       const video=videoRef.current;
       let found=null;
+      const vw=video.videoWidth,vh=video.videoHeight;
+      if(!vw||!vh){busyRef.current=false;rafRef.current=setTimeout(ocrLoop,600);return;}
       // Crops: (cropTop, cropFrac, rotate180, cropSides)
       // Mais tentativas, mais centradas, usando recorte lateral para PT
       const crops=[
@@ -2908,10 +2909,11 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
       }
       // Debounce: aceitar só se aparecer 2× seguidas (evita falsos positivos)
       if(found){
+        setCamTxt("🔍 "+found+" (a confirmar...)");
         const p=pendingRef.current;
         if(p.plate===found){
           p.count++;
-          if(p.count>=2&&found!==lastFoundRef.current){
+          if(p.count>=1&&found!==lastFoundRef.current){
             lastFoundRef.current=found;pendingRef.current={plate:null,count:0};
             setPlate(found);setCamTxt("✓ "+found);setCamOk(true);setScanning(true);
             toast(t.opDetected+" "+found);
