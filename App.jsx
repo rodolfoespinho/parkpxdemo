@@ -294,6 +294,9 @@ const normalisePlate=(raw)=>{
   // Formato NN-LL-NN
   m=s.match(/^(\d{2})([A-Z]{2})(\d{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
 
+  // Formato pré-1992: LL-NN-NN  ex: SM-22-07
+  m=s.match(/^([A-Z]{2})(\d{2})(\d{2})$/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
+
   // ── ESPANHA ───────────────────────────────────────────────────────────────
   // 2000+: NNNN-LLL  ex: 1272-JXC  (L não inclui AEIOUÑ)
   m=s.match(/^(\d{4})([BCDFGHJKLMNPRSTUVWXYZ]{3})$/);if(m)return`${m[1]}-${m[2]}`;
@@ -1881,6 +1884,20 @@ const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
 
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",userSelect:"none"}}>
+      {/* ── Valores ACIMA do arco — visíveis mesmo com dedo no selector ── */}
+      <div style={{textAlign:"center",marginBottom:4,pointerEvents:"none"}}>
+        <div style={{fontSize:38,fontWeight:900,color,lineHeight:1,letterSpacing:-1,fontFamily:"Sora,sans-serif"}}>
+          {priceStr}
+        </div>
+        {disc>0&&(
+          <div style={{fontSize:11,fontWeight:700,color:C.ok,marginTop:2}}>
+            -{disc}% desconto residentes
+          </div>
+        )}
+        <div style={{fontSize:22,fontWeight:800,color:C.text,marginTop:disc>0?2:4,letterSpacing:-.5,fontFamily:"Sora,sans-serif"}}>
+          {timeLabel}
+        </div>
+      </div>
       <div style={{position:"relative",width:"100%",maxWidth:260,touchAction:"none"}}
         onMouseDown={e=>{dragging.current=true;const ni=posToIdx(e.clientX,e.clientY);if(ni!=null)onChange(OPTIONS[ni].mins);}}
         onMouseMove={e=>handleMove(e.clientX,e.clientY)}
@@ -1899,24 +1916,6 @@ const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
           <circle cx={curPt.x} cy={curPt.y} r={STROKE*1.15} fill={color}
             style={{filter:"drop-shadow(0 2px 6px "+color+"88)"}}/>
           <circle cx={curPt.x} cy={curPt.y} r={STROKE*0.42} fill="#fff"/>
-          {/* Price */}
-          <text x={CX} y={CY-8} textAnchor="middle"
-            fill={color} fontSize="34" fontWeight="900"
-            fontFamily="Sora,sans-serif" style={{letterSpacing:-1}}>
-            {priceStr}
-          </text>
-          {disc>0&&(
-            <text x={CX} y={CY+16} textAnchor="middle"
-              fill={C.ok} fontSize="11" fontWeight="700" fontFamily="Sora,sans-serif">
-              -{disc}% desconto
-            </text>
-          )}
-          {/* Time label */}
-          <text x={CX} y={disc>0?CY+36:CY+22} textAnchor="middle"
-            fill={C.text} fontSize="20" fontWeight="800"
-            fontFamily="Sora,sans-serif" style={{letterSpacing:-.5}}>
-            {timeLabel}
-          </text>
         </svg>
       </div>
       {/* Quick pills */}
@@ -2712,7 +2711,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
   const [camTxt,setCamTxt]=useState("");const [camOk,setCamOk]=useState(false);
   const [ocrReady,setOcrReady]=useState(false);
   const videoRef=useRef(null);const streamRef=useRef(null);
-  const canvasRef=useRef(null);const workerRef=useRef(null);const workerRef2=useRef(null);
+  const canvasRef=useRef(null);const workerRef=useRef(null);const workerRef2=useRef(null);const frameCountRef=useRef(0);
   const rafRef=useRef(null);const lastFoundRef=useRef(null);const busyRef=useRef(false);
   const pendingRef=useRef({plate:null,count:0});
   const sessions=getAllSess();const now=new Date();
@@ -2774,52 +2773,34 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     return null;
   };
 
-  /* ── Prepara canvas com pré-processamento optimizado para matrículas PT ──
-     Matrículas PT: fundo branco, texto preto grande, separador ponto,
-     faixa azul EU à esquerda (~10% largura) + faixa amarela direita (~8%)
-     Estratégia: recortar zona central branca, ampliar 3×, binarizar       ── */
-  const prepareFrame=(video,scale,cropTop,cropFrac,rotate180,cropSides=true)=>{
+  /* ── prepareFrame: grayscale + contraste + binarize — simples e rápido ── */
+  const prepareFrame=(video,cropTop,cropFrac,flip=false)=>{
     const vw=video.videoWidth,vh=video.videoHeight;
     const cropY=Math.round(vh*cropTop),cropH=Math.round(vh*cropFrac);
-    // Recortar faixas laterais (EU azul ~12% + amarela ~10%) para PT puro
-    const sideL=cropSides?Math.round(vw*0.12):0;
-    const sideR=cropSides?Math.round(vw*0.10):0;
-    const srcW=vw-sideL-sideR;
-    const PAD=20; // padding branco à volta para Tesseract
+    const SCALE=2,PAD=16;
     const cvs=document.createElement("canvas");
-    cvs.width=srcW*scale+PAD*2;cvs.height=cropH*scale+PAD*2;
+    cvs.width=vw*SCALE+PAD*2;cvs.height=cropH*SCALE+PAD*2;
     const ctx=cvs.getContext("2d",{willReadFrequently:true});
-    // Fundo branco
     ctx.fillStyle="#fff";ctx.fillRect(0,0,cvs.width,cvs.height);
-    if(rotate180){
-      ctx.save();
-      ctx.translate(cvs.width,cvs.height);ctx.rotate(Math.PI);
-      ctx.filter="grayscale(1) contrast(4) brightness(1.1)";
-      ctx.drawImage(video,sideL,cropY,srcW,cropH,PAD,PAD,srcW*scale,cropH*scale);
-      ctx.restore();
-    } else {
-      ctx.save();
-      ctx.filter="grayscale(1) contrast(4) brightness(1.1)";
-      ctx.drawImage(video,sideL,cropY,srcW,cropH,PAD,PAD,srcW*scale,cropH*scale);
-      ctx.restore();
-    }
-    // Threshold adaptativo com dois passes (apanha fundo claro e fundo escuro)
+    ctx.save();
+    if(flip){ctx.translate(cvs.width,cvs.height);ctx.rotate(Math.PI);}
+    ctx.filter="grayscale(1) contrast(3.5) brightness(1.15)";
+    ctx.drawImage(video,0,cropY,vw,cropH,PAD,PAD,vw*SCALE,cropH*SCALE);
+    ctx.restore();
     const id=ctx.getImageData(0,0,cvs.width,cvs.height);
     const d=id.data;
-    let sum=0,cnt=0;
-    for(let i=0;i<d.length;i+=16){sum+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];cnt++;}
-    const avg=sum/cnt;
-    // Matrículas PT: fundo claro → threshold mais alto para cortar bem
-    const thr=avg>160?Math.min(avg*0.70,200):Math.min(Math.max(avg*0.85,80),170);
+    let s=0,n=0;
+    for(let i=0;i<d.length;i+=16){s+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];n++;}
+    const thr=Math.min(Math.max((s/n)*0.82,90),185);
     for(let i=0;i<d.length;i+=4){
-      const lum=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-      const v=lum>thr?255:0;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+      const l=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+      d[i]=d[i+1]=d[i+2]=l>thr?255:0;d[i+3]=255;
     }
     ctx.putImageData(id,0,0);
     return cvs;
   };
 
-  /* ── Carrega Tesseract.js — 2 workers: PSM7 (linha) + PSM8 (palavra) ── */
+  /* ── loadOCR: 1 worker PSM7 (linha) — rápido e fiável ── */
   const loadOCR=async()=>{
     if(workerRef.current)return true;
     try{
@@ -2831,109 +2812,66 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
         });
       }
       setCamTxt("A carregar OCR...");
-      const WHITELIST="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      // Worker 1: PSM 7 = linha única (bom para texto na horizontal)
-      const w1=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
-      await w1.setParameters({
-        tessedit_char_whitelist:WHITELIST,
+      const w=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
+      await w.setParameters({
+        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
         tessedit_pageseg_mode:"7",
         preserve_interword_spaces:"0",
         tessedit_do_invert:"0",
       });
-      workerRef.current=w1;
-      // Worker 2: PSM 8 = palavra única (mais agressivo, melhor para matrícula isolada)
-      const w2=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
-      await w2.setParameters({
-        tessedit_char_whitelist:WHITELIST,
-        tessedit_pageseg_mode:"8",
-        preserve_interword_spaces:"0",
-        tessedit_do_invert:"0",
-      });
-      workerRef2.current=w2;
+      workerRef.current=w;
       setOcrReady(true);
-      setCamTxt("Aponte a câmara para a matrícula");
+      setCamTxt("Aponte para a matrícula");
       return true;
-    }catch(e){console.warn("OCR falhou",e);return false;}
+    }catch(e){console.warn("OCR load failed",e);return false;}
   };
 
-  /* ── Loop de análise — a cada 600ms, debounce 2 leituras consistentes ── */
+  /* ── ocrLoop: simples, rápido, 500ms — lê e transcreve imediatamente ── */
   const ocrLoop=async()=>{
-    if(busyRef.current||!workerRef.current||!videoRef.current||!videoRef.current.videoWidth){
-      rafRef.current=setTimeout(ocrLoop,600);return;
+    if(busyRef.current||!workerRef.current||!videoRef.current){
+      rafRef.current=setTimeout(ocrLoop,500);return;
+    }
+    const video=videoRef.current;
+    if(!video.videoWidth||!video.videoHeight){
+      rafRef.current=setTimeout(ocrLoop,500);return;
     }
     busyRef.current=true;
     try{
-      const video=videoRef.current;
+      // 4 crops: centro + cima + baixo + invertido
+      const crops=[[0.30,0.40,false],[0.20,0.35,false],[0.45,0.40,false],[0.30,0.40,true]];
       let found=null;
-      const vw=video.videoWidth,vh=video.videoHeight;
-      if(!vw||!vh){busyRef.current=false;rafRef.current=setTimeout(ocrLoop,600);return;}
-      // Crops: (cropTop, cropFrac, rotate180, cropSides)
-      // Mais tentativas, mais centradas, usando recorte lateral para PT
-      const crops=[
-        [0.25,0.50,false,true],   // centro-alto, recorte lateral
-        [0.35,0.35,false,true],   // centro, recorte lateral
-        [0.40,0.40,false,false],  // centro, sem recorte (placas não-PT)
-        [0.50,0.35,false,true],   // centro-baixo, recorte lateral
-        [0.25,0.50,true,true],    // invertido, recorte lateral
-        [0.35,0.35,true,false],   // invertido, sem recorte
-      ];
-      const runOCR=async(cvs)=>{
-        // Correr ambos workers em paralelo
-        const results=await Promise.allSettled([
-          workerRef.current.recognize(cvs),
-          workerRef2.current?workerRef2.current.recognize(cvs):Promise.reject()
-        ]);
-        const texts=results
-          .filter(r=>r.status==="fulfilled")
-          .map(r=>r.value.data.text);
-        return texts;
-      };
-      for(const [top,frac,rot,sides] of crops){
+      for(const [top,frac,flip] of crops){
         if(found)break;
         try{
-          const cvs=prepareFrame(video,3,top,frac,rot,sides);
-          const texts=await runOCR(cvs);
-          for(const text of texts){
-            if(found)break;
-            // Gerar candidatos: texto completo + linhas + palavras
-            const lines=[
-              text.replace(/[\n\r]/g," ").trim(),
-              ...text.split(/[\n\r]+/).map(l=>l.trim())
-            ].filter(l=>l.length>=4);
-            for(const line of lines){
-              const n=tryPlate(line);
-              if(n){found=n;break;}
-            }
+          const cvs=prepareFrame(video,top,frac,flip);
+          const {data:{text}}=await workerRef.current.recognize(cvs);
+          const raw=text.replace(/[
+]/g," ").trim();
+          if(raw.length>=3)setCamTxt("OCR: "+raw.slice(0,28));
+          // Tentar linha completa + cada palavra separada
+          const candidates=[raw,...raw.split(/\s+/)].filter(s=>s.length>=4);
+          for(const c of candidates){
+            const n=tryPlate(c);if(n){found=n;break;}
           }
-        }catch{}
+        }catch(e){}
       }
-      // Debounce: aceitar só se aparecer 2× seguidas (evita falsos positivos)
       if(found){
-        setCamTxt("🔍 "+found+" (a confirmar...)");
-        const p=pendingRef.current;
-        if(p.plate===found){
-          p.count++;
-          if(p.count>=1&&found!==lastFoundRef.current){
-            lastFoundRef.current=found;pendingRef.current={plate:null,count:0};
-            setPlate(found);setCamTxt("✓ "+found);setCamOk(true);setScanning(true);
-            toast(t.opDetected+" "+found);
-            setTimeout(()=>check(found),300);
-            await new Promise(r=>setTimeout(r,3000));
-            setScanning(false);lastFoundRef.current=null;
-            setCamTxt("Aponte a câmara para a matrícula");setCamOk(false);
-          }
-        } else {
-          pendingRef.current={plate:found,count:1};
+        if(found!==lastFoundRef.current){
+          lastFoundRef.current=found;
+          setPlate(found);setCamTxt("✓ "+found);setCamOk(true);setScanning(true);
+          toast(t.opDetected+" "+found);
+          setTimeout(()=>check(found),200);
+          await new Promise(r=>setTimeout(r,2500));
+          setScanning(false);lastFoundRef.current=null;
+          setCamTxt("Aponte para a matrícula");setCamOk(false);
         }
-      } else {
-        if(pendingRef.current.count>0)pendingRef.current={plate:null,count:0};
       }
-    }catch{}
+    }catch(e){}
     busyRef.current=false;
-    rafRef.current=setTimeout(ocrLoop,600);
+    rafRef.current=setTimeout(ocrLoop,500);
   };
 
-  const startCam=async()=>{
+    const startCam=async()=>{
     setCamTxt("A iniciar câmara...");setCamOk(false);
     try{
       const stream=await navigator.mediaDevices.getUserMedia({
