@@ -640,11 +640,8 @@ const InfoScreen=({goTo,screen,lang,setLang,t})=>{
         ["3. Pagamentos","Processados via Stripe (PCI DSS nível 1). A CM Peniche não armazena dados de cartão. Tarifas conforme Edital nº 2024/0042, actualizáveis anualmente."],
         ["4. Responsabilidade do Utilizador","O utilizador é responsável pela correcta introdução da matrícula e zona. Erros não dão lugar a reembolso."],
         ["5. Verificação","As matrículas são verificadas electronicamente pelos agentes municipais. Veículos sem sessão válida estão sujeitos a procedimento de contraordenação."],
-        ["6. RGPD","Dados tratados conforme o RGPD (UE 2016/679). Responsável: CM Peniche, NIF 506 715 320. Contacto: rgpd@cm-penichepark.pt — clique para escrever"],
-        ["7. Reembolsos","Pedidos em 24h após pagamento.
-Email: suporte@cm-penichepark.pt
-Indique a ref. PKX-XXXXXX e IBAN.
-Creditados em 5–10 dias úteis."],
+        ["6. RGPD","Dados tratados conforme o RGPD (UE 2016/679). Responsável: CM Peniche, NIF 506 715 320. Contacto: rgpd@cm-penichepark.pt"],
+        ["7. Reembolsos","Pedidos em 24h após pagamento.\nEmail: suporte@cm-penichepark.pt\nIndique a ref. PKX-XXXXXX e IBAN.\nCreditados em 5–10 dias úteis."],
         ["8. Alterações","Alterações publicadas em cm-peniche.pt com 30 dias de aviso. Utilização continuada implica aceitação."],
       ].map(([q,a],i)=><CARD key={i} q={q} a={a}/>)}
     </WRAP>
