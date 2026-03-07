@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 // ─────────────────────────────────────────────
 //  LOGÓTIPO — Câmara Municipal de Peniche (SVG inline base64)
@@ -3342,6 +3343,7 @@ export default function ParkPX(){
       <Toast msg={toastMsg}/>
       {screens[screen]||screens.landing}
       <style>{`*{box-sizing:border-box;margin:0;padding:0;}input,button{font-family:'Sora',-apple-system,sans-serif;}::-webkit-scrollbar{display:none;}input[type=range]{accent-color:#3d7a3a;}body{background:#f2f5f2;}`}</style>
+      <SpeedInsights />
     </div>
   );
 }
