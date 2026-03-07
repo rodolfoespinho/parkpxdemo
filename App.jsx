@@ -32,7 +32,7 @@ const T = {
     active:"Serviço activo · Peniche",
     whereParking:"Onde está a parcar?", selectZone:"Seleccione a zona indicada na placa de sinalização.",
     plate:"Matrícula", platePlaceholder:"AA-00-AA · AB123CD · 1ABC123",
-    plateHint:"Aceita PT, UE e matrículas internacionais",
+    plateHint:"PT · ES · FR · DE · UK · IT · NL · BE · BR e outras",
     recentPlates:"Usadas recentemente", continue:"Prosseguir →",
     howLong:"Quanto tempo?", choosePayment:"Seleccionar Método de Pagamento",
     paymentMethod:"Método de Pagamento", payNow:"Confirmar e Pagar",
@@ -127,7 +127,7 @@ const T = {
     active:"Service active · Peniche",
     whereParking:"Where are you parking?", selectZone:"Select the zone shown on the sign.",
     plate:"Licence Plate", platePlaceholder:"AA-00-AA · AB123CD · 1ABC123",
-    plateHint:"Accepts PT, EU and international plates",
+    plateHint:"PT · ES · FR · DE · UK · IT · NL · BE · BR and more",
     recentPlates:"Recently used", continue:"Proceed →",
     howLong:"How long?", choosePayment:"Select Payment Method",
     paymentMethod:"Payment Method", payNow:"Confirm & Pay",
@@ -270,9 +270,55 @@ const getAllSess=()=>[...getLive(),...DEMO_SESS()];
 const fmtTime=t=>new Date(t).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"});
 const fmtDate=t=>new Date(t).toLocaleDateString("pt-PT",{day:"2-digit",month:"short",year:"numeric"});
 const fmtEur=n=>n.toFixed(2).replace(".",",")+" €";
-const cleanPlate=v=>v.toUpperCase().replace(/[^A-Z0-9\-\s]/g,"").slice(0,12);
+const cleanPlate=v=>v.toUpperCase().replace(/[^A-Z0-9\-\s]/g,"").slice(0,15);
 const genRef=()=>"PKX-"+Math.floor(100000+Math.random()*900000);
+// matchPlate — ignora separadores para comparacao
 const matchPlate=(a,b)=>a.toUpperCase().replace(/[\s\-]/g,"")===b.toUpperCase().replace(/[\s\-]/g,"");
+
+// ─────────────────────────────────────────────
+//  PLATE FORMATS — PT, ES, FR, DE, UK, NL, BE, IT, CH, AT, PL, SE, NO, DK, FI, IE, BR, generico
+// ─────────────────────────────────────────────
+const normalisePlate=(raw)=>{
+  const s=raw.toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if(s.length<4||s.length>10)return null;
+  // Portugal
+  const pt1=s.match(/^([A-Z]{2})(\d{2})([A-Z]{2})$/);if(pt1)return`${pt1[1]}-${pt1[2]}-${pt1[3]}`;
+  const pt2=s.match(/^([A-Z]{2})([A-Z]{2})(\d{2})$/);if(pt2)return`${pt2[1]}-${pt2[2]}-${pt2[3]}`;
+  const pt3=s.match(/^(\d{2})([A-Z]{2})(\d{2})$/);if(pt3)return`${pt3[1]}-${pt3[2]}-${pt3[3]}`;
+  // Espanha 0000-BBB
+  const es=s.match(/^(\d{4})([BCDFGHJKLMNPRSTUVWXYZ]{3})$/);if(es)return`${es[1]}-${es[2]}`;
+  // Espanha antiga AA-0000-BB
+  const esO=s.match(/^([A-Z]{1,2})(\d{4})([A-Z]{1,2})$/);if(esO)return`${esO[1]}-${esO[2]}-${esO[3]}`;
+  // Franca AA-000-AA
+  const fr=s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(fr)return`${fr[1]}-${fr[2]}-${fr[3]}`;
+  // UK actual AB12CDE
+  const uk=s.match(/^([A-Z]{2})(\d{2})([A-Z]{3})$/);if(uk)return`${uk[1]}${uk[2]} ${uk[3]}`;
+  // UK antiga
+  const ukO=s.match(/^([A-Z]{1,2})(\d{2,4})([A-Z]{1,3})$/);if(ukO)return`${ukO[1]}${ukO[2]} ${ukO[3]}`;
+  // Italia AA000AA
+  const it=s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(it)return`${it[1]}-${it[2]}-${it[3]}`;
+  // Belgica 1-AAA-000
+  const be=s.match(/^(\d)([A-Z]{3})(\d{3})$/);if(be)return`${be[1]}-${be[2]}-${be[3]}`;
+  // Suecia/Finlandia AAA000
+  const se=s.match(/^([A-Z]{2,3})(\d{3})$/);if(se)return`${se[1]}-${se[2]}`;
+  // Noruega AA00000
+  const no=s.match(/^([A-Z]{2})(\d{5})$/);if(no)return`${no[1]}-${no[2]}`;
+  // Irlanda 00AA000000
+  const ie=s.match(/^(\d{2})([A-Z]{1,2})(\d{1,6})$/);if(ie)return`${ie[1]}-${ie[2]}-${ie[3]}`;
+  // Brasil AAA0000 / Mercosul AAA0A00
+  const br1=s.match(/^([A-Z]{3})(\d{4})$/);if(br1)return`${br1[1]}-${br1[2]}`;
+  const br2=s.match(/^([A-Z]{3})(\d)([A-Z])(\d{2})$/);if(br2)return`${br2[1]}${br2[2]}${br2[3]}${br2[4]}`;
+  // Suica AA000000
+  const ch=s.match(/^([A-Z]{1,2})(\d{4,6})$/);if(ch)return`${ch[1]} ${ch[2]}`;
+  // Polonia AA00000
+  const pl=s.match(/^([A-Z]{2,3})(\d{4,5})$/);if(pl)return`${pl[1]}-${pl[2]}`;
+  // Austria/Alemanha generico: letras+numeros misturados
+  const de=s.match(/^([A-Z]{1,3})([A-Z]{1,2})(\d{1,4}[EH]?)$/);
+  if(de&&de[3].replace(/[EH]$/,"").length>=1)return`${de[1]}-${de[2]}-${de[3]}`;
+  // Generico internacional (US/CA/AU) — 5-9 alfanum com letras E numeros
+  if(s.length>=5&&s.length<=9&&/[A-Z]/.test(s)&&/[0-9]/.test(s))return s;
+  return null;
+};
 
 // ─────────────────────────────────────────────
 //  STYLE HELPERS
@@ -2492,28 +2538,12 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     setResult({type:isActive?(wrongZone?"wrongzone":"valid"):"expired",plate:raw,sess:active,rem});
   };
 
-  /* ── Normaliza texto OCR → formato matrícula ── */
+  /* ── Normaliza texto OCR → usa normalisePlate com correcção O↔0 ── */
   const normaliseOCR=(raw)=>{
-    // Correcções de confusão OCR comuns: O↔0, I↔1, S↔5, B↔8, Z↔2, G↔6
-    const fix=s=>s
-      .replace(/\bO\b/g,"0").replace(/(?<=[A-Z]{2}[- ]?)O(?=[A-Z0-9])/g,"0")
-      .replace(/(?<=[0-9])O(?=[0-9])/g,"0")
-      .replace(/(?<=[0-9])I(?=[0-9])/g,"1")
-      .replace(/(?<=\d{2}[- ]?)I(?=[A-Z])/g,"I"); // manter I em letras
-    const s=fix(raw.toUpperCase().replace(/[^A-Z0-9]/g,""));
-    if(s.length<5||s.length>9)return null;
-    // PT: AA-00-AA (letras-números-letras)
-    const pt1=s.match(/^([A-Z]{2})(\d{2})([A-Z]{2})$/);if(pt1)return`${pt1[1]}-${pt1[2]}-${pt1[3]}`;
-    // PT novo: AA-AA-00 (letras-letras-números)
-    const pt2=s.match(/^([A-Z]{2})([A-Z]{2})(\d{2})$/);if(pt2)return`${pt2[1]}-${pt2[2]}-${pt2[3]}`;
-    // PT antigo: 00-AA-00
-    const pt3=s.match(/^(\d{2})([A-Z]{2})(\d{2})$/);if(pt3)return`${pt3[1]}-${pt3[2]}-${pt3[3]}`;
-    // FR: AA-000-AA
-    const fr=s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(fr)return`${fr[1]}-${fr[2]}-${fr[3]}`;
-    // UK: AB12CDE
-    const uk=s.match(/^([A-Z]{2})(\d{2})([A-Z]{3})$/);if(uk)return`${uk[1]}${uk[2]}${uk[3]}`;
-    // Aceitar sequência razoável como está
-    if(s.length>=5&&s.length<=8)return s;
+    const s=raw.toUpperCase().replace(/[^A-Z0-9]/g,"");
+    const r1=normalisePlate(s);if(r1)return r1;
+    const r2=normalisePlate(s.replace(/O/g,"0"));if(r2)return r2;
+    const r3=normalisePlate(s.replace(/0/g,"O"));if(r3)return r3;
     return null;
   };
 
