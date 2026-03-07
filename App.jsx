@@ -2493,13 +2493,52 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
 
   /* ── Normaliza texto OCR → formato matrícula ── */
   const normaliseOCR=(raw)=>{
-    const s=raw.toUpperCase().replace(/[^A-Z0-9]/g,"");
+    // Correcções de confusão OCR comuns: O↔0, I↔1, S↔5, B↔8, Z↔2, G↔6
+    const fix=s=>s
+      .replace(/\bO\b/g,"0").replace(/(?<=[A-Z]{2}[- ]?)O(?=[A-Z0-9])/g,"0")
+      .replace(/(?<=[0-9])O(?=[0-9])/g,"0")
+      .replace(/(?<=[0-9])I(?=[0-9])/g,"1")
+      .replace(/(?<=\d{2}[- ]?)I(?=[A-Z])/g,"I"); // manter I em letras
+    const s=fix(raw.toUpperCase().replace(/[^A-Z0-9]/g,""));
+    if(s.length<5||s.length>9)return null;
+    // PT: AA-00-AA (letras-números-letras)
     const pt1=s.match(/^([A-Z]{2})(\d{2})([A-Z]{2})$/);if(pt1)return`${pt1[1]}-${pt1[2]}-${pt1[3]}`;
+    // PT novo: AA-AA-00 (letras-letras-números)
     const pt2=s.match(/^([A-Z]{2})([A-Z]{2})(\d{2})$/);if(pt2)return`${pt2[1]}-${pt2[2]}-${pt2[3]}`;
+    // PT antigo: 00-AA-00
     const pt3=s.match(/^(\d{2})([A-Z]{2})(\d{2})$/);if(pt3)return`${pt3[1]}-${pt3[2]}-${pt3[3]}`;
+    // FR: AA-000-AA
     const fr=s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(fr)return`${fr[1]}-${fr[2]}-${fr[3]}`;
+    // UK: AB12CDE
+    const uk=s.match(/^([A-Z]{2})(\d{2})([A-Z]{3})$/);if(uk)return`${uk[1]}${uk[2]}${uk[3]}`;
+    // Aceitar sequência razoável como está
     if(s.length>=5&&s.length<=8)return s;
     return null;
+  };
+
+  /* ── Prepara canvas com filtros para melhor OCR ── */
+  const prepareCanvas=(video,scale=2,cropZone={top:0.45,height:0.35})=>{
+    const vw=video.videoWidth,vh=video.videoHeight;
+    const cropY=Math.round(vh*cropZone.top);
+    const cropH=Math.round(vh*cropZone.height);
+    const cvs=canvasRef.current;
+    cvs.width=vw*scale;cvs.height=cropH*scale;
+    const ctx=cvs.getContext("2d",{willReadFrequently:true});
+    ctx.save();
+    ctx.scale(scale,scale);
+    ctx.filter="grayscale(1) contrast(2.5) brightness(1.15) sharpen(1)";
+    ctx.drawImage(video,0,cropY,vw,cropH,0,0,vw,cropH);
+    ctx.restore();
+    // Threshold manual para preto/branco puro
+    const id=ctx.getImageData(0,0,cvs.width,cvs.height);
+    const d=id.data;
+    for(let i=0;i<d.length;i+=4){
+      const lum=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+      const v=lum>128?255:0;
+      d[i]=d[i+1]=d[i+2]=v;
+    }
+    ctx.putImageData(id,0,0);
+    return cvs;
   };
 
   /* ── Carrega Tesseract.js em background ── */
@@ -2516,8 +2555,9 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
       setCamTxt("A carregar OCR...");
       const w=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
       await w.setParameters({
-        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ",
-        tessedit_pageseg_mode:"7",
+        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        tessedit_pageseg_mode:"8", // PSM 8 = palavra única — melhor para matrículas
+        preserve_interword_spaces:"0",
       });
       workerRef.current=w;setOcrReady(true);
       setCamTxt("Aponte para a matrícula do veículo");
@@ -2534,7 +2574,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
       streamRef.current=stream;
       if(videoRef.current)videoRef.current.srcObject=stream;
       setCamTxt("Aponte para a matrícula do veículo");setCamOk(true);
-      loadOCR();/* carregar OCR em background sem bloquear câmara */
+      loadOCR();
     }catch{setCamTxt("Câmara não disponível");setCamOk(false);}
   };
   const stopCam=()=>{
@@ -2554,31 +2594,49 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     try{
       const video=videoRef.current;
       if(!video||!video.videoWidth)throw new Error("sem vídeo");
-      const cvs=canvasRef.current;
-      const vw=video.videoWidth,vh=video.videoHeight;
-      /* recortar terço inferior — onde as matrículas costumam estar */
-      const cropH=Math.round(vh*0.35),cropY=Math.round(vh*0.5);
-      cvs.width=vw;cvs.height=cropH;
-      const ctx=cvs.getContext("2d");
-      ctx.filter="contrast(1.8) brightness(1.1) saturate(0)";
-      ctx.drawImage(video,0,cropY,vw,cropH,0,0,vw,cropH);
-      ctx.filter="none";
       const ready=workerRef.current?true:await loadOCR();
       if(!ready)throw new Error("OCR indisponível");
-      const {data:{text}}=await workerRef.current.recognize(cvs);
-      const lines=text.split("\n").map(l=>l.trim()).filter(Boolean);
+
       let found=null;
-      for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
+
+      // Tentativa 1: crop zona central-inferior (onde costuma estar a matrícula)
+      if(!found){
+        const cvs=prepareCanvas(video,2,{top:0.45,height:0.35});
+        const {data:{text}}=await workerRef.current.recognize(cvs);
+        const lines=[text,...text.split("\n")].map(l=>l.trim()).filter(Boolean);
+        for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
+      }
+
+      // Tentativa 2: crop zona superior (matrículas podem estar na frente do carro)
+      if(!found){
+        const cvs=prepareCanvas(video,2,{top:0.1,height:0.4});
+        const {data:{text}}=await workerRef.current.recognize(cvs);
+        const lines=[text,...text.split("\n")].map(l=>l.trim()).filter(Boolean);
+        for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
+      }
+
+      // Tentativa 3: frame completo com escala menor
+      if(!found){
+        const vw=video.videoWidth,vh=video.videoHeight;
+        const cvs=canvasRef.current;cvs.width=vw;cvs.height=vh;
+        const ctx=cvs.getContext("2d");
+        ctx.filter="grayscale(1) contrast(2) brightness(1.1)";
+        ctx.drawImage(video,0,0);ctx.filter="none";
+        const {data:{text}}=await workerRef.current.recognize(cvs);
+        const lines=[text,...text.split("\n")].map(l=>l.trim()).filter(Boolean);
+        for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
+      }
+
       if(found){
         setPlate(found);setCamTxt(found);setCamOk(true);
         toast(t.opDetected+" "+found);
         setTimeout(()=>check(found),300);
       }else{
-        setCamTxt("Não foi possível identificar — tente novamente");setCamOk(false);
-        toast("Não foi possível identificar a matrícula. Ajuste o ângulo e a luminosidade.");
+        setCamTxt("Não identificado — centralize a matrícula e tente novamente");setCamOk(false);
+        toast("Não foi possível identificar. Aproxime a câmara da matrícula.");
       }
     }catch(e){
-      /* fallback demo: usa matrículas de sessões activas */
+      /* fallback demo */
       const opts=sessions.filter(s=>new Date(s.end)>now).map(s=>s.plate);
       const rp=opts.length?opts[Math.floor(Math.random()*opts.length)]:"AA-11-BB";
       setPlate(rp);setCamTxt(rp);setCamOk(true);
