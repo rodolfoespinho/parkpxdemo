@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Analytics } from "@vercel/analytics/react";
 
 // ─────────────────────────────────────────────
 //  PALETTE
@@ -2578,6 +2579,7 @@ export default function ParkPX(){
       <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
       <Toast msg={toastMsg}/>
       {screens[screen]||screens.landing}
+      <Analytics />
       <style>{`*{box-sizing:border-box;margin:0;padding:0;}input,button{font-family:'Sora',-apple-system,sans-serif;}::-webkit-scrollbar{display:none;}input[type=range]{accent-color:#3d7a3a;}body{background:#f2f5f2;}`}</style>
     </div>
   );
