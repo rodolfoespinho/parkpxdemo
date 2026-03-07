@@ -2709,11 +2709,9 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
   const [result,setResult]=useState(null);
   const [scanning,setScanning]=useState(false);
   const [camTxt,setCamTxt]=useState("");const [camOk,setCamOk]=useState(false);
-  const [ocrReady,setOcrReady]=useState(false);
   const videoRef=useRef(null);const streamRef=useRef(null);
-  const canvasRef=useRef(null);const workerRef=useRef(null);const workerRef2=useRef(null);const frameCountRef=useRef(0);
+  const canvasRef=useRef(null);
   const rafRef=useRef(null);const lastFoundRef=useRef(null);const busyRef=useRef(false);
-  const pendingRef=useRef({plate:null,count:0});
   const sessions=getAllSess();const now=new Date();
   const zoneSessions=sessions.filter(s=>s.zone===zone&&new Date(s.end)>now);
 
@@ -2773,31 +2771,110 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     return null;
   };
 
-  /* ── prepareFrame: crop da zona guia, upscale 3x, binarize ── */
-  const prepareFrame=(video)=>{
+  /* ═══════════════════════════════════════════════════════════════════
+     OCR ENGINE — detecção automática da matrícula sem rectângulo guia
+     
+     Pipeline:
+     1. Capturar frame completo da câmara
+     2. Detectar automaticamente a região de alto contraste horizontal
+        que corresponde a uma matrícula (fundo claro, texto escuro, ratio ~4:1)
+     3. Recortar e ampliar só essa região
+     4. Binarização adaptativa
+     5. Tesseract PSM 8 (palavra) + PSM 7 (linha) em paralelo
+     
+     O operador aponta o telemóvel ao carro — sem precisar de alinhar nada.
+  ═══════════════════════════════════════════════════════════════════ */
+
+  /* ── detectPlateRegion: encontra automaticamente a matrícula no frame ──
+     Varre o frame em blocos e detecta a região com:
+     - Alta luminosidade média (fundo claro da matrícula)
+     - Alto contraste interno (letras escuras no fundo claro)
+     - Proporção horizontal (largura > 2× altura)
+     Devolve {x,y,w,h} em coordenadas do vídeo, ou null se não encontrar ── */
+  const detectPlateRegion=(video)=>{
     const vw=video.videoWidth,vh=video.videoHeight;
-    // Zona guia: faixa central horizontal, 20% altura, largura quase total
-    // Corresponde ao rectângulo branco visível no overlay
-    const srcX=Math.round(vw*0.04);
-    const srcW=Math.round(vw*0.92);
-    const srcY=Math.round(vh*0.38);
-    const srcH=Math.round(vh*0.24);
-    const SCALE=3,PAD=20;
+    if(!vw||!vh)return null;
+    // Canvas pequeno para análise rápida (não precisamos de resolução alta aqui)
+    const SCAN_W=160,SCAN_H=Math.round(160*vh/vw);
+    const sc=document.createElement("canvas");
+    sc.width=SCAN_W;sc.height=SCAN_H;
+    const sctx=sc.getContext("2d",{willReadFrequently:true});
+    sctx.drawImage(video,0,0,SCAN_W,SCAN_H);
+    const sd=sctx.getImageData(0,0,SCAN_W,SCAN_H).data;
+    // Converter para greyscale 2D
+    const gray=new Float32Array(SCAN_W*SCAN_H);
+    for(let i=0;i<SCAN_W*SCAN_H;i++){
+      gray[i]=0.299*sd[i*4]+0.587*sd[i*4+1]+0.114*sd[i*4+2];
+    }
+    // Varrer blocos de 20×8 pixels (proporção matrícula ~2.5:1 neste scale)
+    const BW=20,BH=8;
+    let best=null,bestScore=-1;
+    for(let by=1;by<SCAN_H-BH-1;by+=2){
+      for(let bx=2;bx<SCAN_W-BW-2;bx+=2){
+        // Calcular média e desvio padrão do bloco
+        let sum=0,sum2=0,n=0;
+        for(let y=by;y<by+BH;y++){
+          for(let x=bx;x<bx+BW;x++){
+            const v=gray[y*SCAN_W+x];
+            sum+=v;sum2+=v*v;n++;
+          }
+        }
+        const avg=sum/n;
+        const std=Math.sqrt(sum2/n-avg*avg);
+        // Matrícula: fundo claro (avg>130) + alto contraste (std>30)
+        // Evitar zonas demasiado brancas sem detalhe (std<15 = fundo sólido)
+        if(avg>125&&std>28&&std<110){
+          // Bonus se estiver na zona central vertical (evitar céu/chão)
+          const vBonus=(by/SCAN_H>0.25&&by/SCAN_H<0.80)?1.2:1.0;
+          const score=(avg/255)*std*vBonus;
+          if(score>bestScore){bestScore=score;best={bx,by};}
+        }
+      }
+    }
+    if(!best)return null;
+    // Expandir a região encontrada para incluir toda a matrícula
+    // A matrícula tem ~25% da largura do carro, expandimos horizontalmente
+    const cx=best.bx+BW/2, cy=best.by+BH/2;
+    // Proporção típica matrícula PT: 520×113mm ≈ 4.6:1
+    // No frame, assumir que a matrícula ocupa ~40% da largura visível
+    const plateW=Math.round(SCAN_W*0.50);
+    const plateH=Math.round(plateW/4.0);
+    const px=Math.max(0,Math.round(cx-plateW/2));
+    const py=Math.max(0,Math.round(cy-plateH/2));
+    const pw=Math.min(SCAN_W-px,plateW);
+    const ph=Math.min(SCAN_H-py,plateH);
+    // Converter de volta para coordenadas do vídeo
+    const scaleX=vw/SCAN_W, scaleY=vh/SCAN_H;
+    return{
+      x:Math.round(px*scaleX),
+      y:Math.round(py*scaleY),
+      w:Math.round(pw*scaleX),
+      h:Math.round(ph*scaleY)
+    };
+  };
+
+  /* ── prepareCanvas: recorta região e processa para Tesseract ── */
+  const prepareCanvas=(video,region)=>{
+    const{x,y,w,h}=region;
+    // Excluir os primeiros 18% da região (faixa azul EU nas matrículas PT/EU)
+    const skipLeft=Math.round(w*0.18);
+    const srcX=x+skipLeft, srcW=w-skipLeft;
+    const SCALE=4,PAD=20;
     const cvs=document.createElement("canvas");
     cvs.width=srcW*SCALE+PAD*2;
-    cvs.height=srcH*SCALE+PAD*2;
+    cvs.height=h*SCALE+PAD*2;
     const ctx=cvs.getContext("2d",{willReadFrequently:true});
     ctx.fillStyle="#fff";ctx.fillRect(0,0,cvs.width,cvs.height);
-    ctx.filter="grayscale(1) contrast(4) brightness(1.1)";
-    ctx.drawImage(video,srcX,srcY,srcW,srcH,PAD,PAD,srcW*SCALE,srcH*SCALE);
+    ctx.filter="grayscale(1) contrast(3.5) brightness(1.15) saturate(0)";
+    ctx.drawImage(video,srcX,y,srcW,h,PAD,PAD,srcW*SCALE,h*SCALE);
     ctx.filter="none";
     // Binarização adaptativa
     const id=ctx.getImageData(0,0,cvs.width,cvs.height);
     const d=id.data;
     let s=0,n=0;
-    for(let i=0;i<d.length;i+=16){s+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];n++;}
+    for(let i=0;i<d.length;i+=12){s+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];n++;}
     const avg=s/n;
-    const thr=avg>150?avg*0.72:Math.min(avg*0.88,175);
+    const thr=avg>145?avg*0.62:avg*0.78;
     for(let i=0;i<d.length;i+=4){
       const l=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
       d[i]=d[i+1]=d[i+2]=l>thr?255:0;d[i+3]=255;
@@ -2806,7 +2883,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     return cvs;
   };
 
-  /* ── loadOCR: PSM 7 (linha) + PSM 13 (raw) ── */
+  /* ── loadOCR: PSM 8 (palavra) + PSM 7 (linha) em paralelo ── */
   const loadOCR=async()=>{
     if(workerRef.current)return true;
     try{
@@ -2818,42 +2895,42 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
         });
       }
       setCamTxt("A carregar OCR...");
-      const w=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
-      await w.setParameters({
-        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-        tessedit_pageseg_mode:"7",
-        preserve_interword_spaces:"0",
-        tessedit_do_invert:"0",
-      });
-      workerRef.current=w;
-      // Worker 2: PSM 13 — raw line, não tenta segmentar
+      const PARAMS8={tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",tessedit_pageseg_mode:"8",preserve_interword_spaces:"0",tessedit_do_invert:"0"};
+      const PARAMS7={...PARAMS8,tessedit_pageseg_mode:"7"};
+      const w1=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
+      await w1.setParameters(PARAMS8);
+      workerRef.current=w1;
       const w2=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
-      await w2.setParameters({
-        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-        tessedit_pageseg_mode:"13",
-        preserve_interword_spaces:"0",
-        tessedit_do_invert:"0",
-      });
+      await w2.setParameters(PARAMS7);
       workerRef2.current=w2;
       setOcrReady(true);
-      setCamTxt("Alinhe a matrícula no guia");
+      setCamTxt("Aponte para o carro");
       return true;
     }catch(e){console.warn("OCR load failed",e);return false;}
   };
 
-  /* ── ocrLoop: crop exacto da zona guia, mostra texto bruto ── */
+  /* ── ocrLoop: detecção automática, sem rectângulo guia ── */
   const ocrLoop=async()=>{
     if(busyRef.current||!workerRef.current||!videoRef.current){
-      rafRef.current=setTimeout(ocrLoop,500);return;
+      rafRef.current=setTimeout(ocrLoop,600);return;
     }
     const video=videoRef.current;
     if(!video.videoWidth||!video.videoHeight){
-      rafRef.current=setTimeout(ocrLoop,500);return;
+      rafRef.current=setTimeout(ocrLoop,600);return;
     }
     busyRef.current=true;
     try{
-      const cvs=prepareFrame(video);
-      // Correr PSM7 e PSM13 em paralelo
+      // 1. Detectar automaticamente a região da matrícula
+      const region=detectPlateRegion(video);
+      if(!region){
+        setCamTxt("Aponte para o carro");
+        busyRef.current=false;
+        rafRef.current=setTimeout(ocrLoop,500);
+        return;
+      }
+      // 2. Preparar canvas com a região detectada
+      const cvs=prepareCanvas(video,region);
+      // 3. OCR em paralelo com dois modos
       const results=await Promise.allSettled([
         workerRef.current.recognize(cvs),
         workerRef2.current?workerRef2.current.recognize(cvs):Promise.reject()
@@ -2862,30 +2939,28 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
       for(const r of results){
         if(r.status!=="fulfilled")continue;
         const raw=r.value.data.text.replace(/[\n\r]/g," ").trim();
-        if(raw.length>=3)setCamTxt("↳ "+raw.slice(0,32));
+        if(raw.length>=3&&!found)setCamTxt("↳ "+raw.slice(0,30));
         const candidates=[raw,...raw.split(/\s+/)].filter(s=>s.length>=4);
         for(const c of candidates){
           const n=tryPlate(c);
           if(n&&!found){found=n;}
         }
       }
-      if(found){
-        if(found!==lastFoundRef.current){
-          lastFoundRef.current=found;
-          setPlate(found);setCamTxt("✓ "+found);setCamOk(true);setScanning(true);
-          toast(t.opDetected+" "+found);
-          setTimeout(()=>check(found),200);
-          await new Promise(r=>setTimeout(r,2500));
-          setScanning(false);lastFoundRef.current=null;
-          setCamTxt("Alinhe a matrícula no guia");setCamOk(false);
-        }
+      if(found&&found!==lastFoundRef.current){
+        lastFoundRef.current=found;
+        setPlate(found);setCamTxt("✓ "+found);setCamOk(true);setScanning(true);
+        toast(t.opDetected+" "+found);
+        setTimeout(()=>check(found),200);
+        await new Promise(r=>setTimeout(r,2500));
+        setScanning(false);lastFoundRef.current=null;
+        setCamTxt("Aponte para o carro");setCamOk(false);
       }
     }catch(e){}
     busyRef.current=false;
     rafRef.current=setTimeout(ocrLoop,600);
   };
 
-    const startCam=async()=>{
+  const startCam=async()=>{
     setCamTxt("A iniciar câmara...");setCamOk(false);
     try{
       const stream=await navigator.mediaDevices.getUserMedia({
@@ -3057,42 +3132,18 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
             <div style={{borderRadius:18,overflow:"hidden",background:"#000",aspectRatio:"16/9",position:"relative",marginBottom:12}}>
               <video ref={videoRef} autoPlay playsInline muted style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
               <canvas ref={canvasRef} style={{display:"none"}}/>
-              {/* Overlay: guia de alinhamento da matrícula */}
-              <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
-                {/* Escurecimento fora da zona guia */}
-                <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.45)"}}/>
-                {/* Rectângulo guia — posição corresponde ao crop: top 38%, height 24%, left 4%, width 92% */}
-                <div style={{
-                  position:"absolute",
-                  top:"38%",left:"4%",right:"4%",height:"24%",
-                  background:"transparent",
-                  boxShadow:"0 0 0 9999px rgba(0,0,0,0.45)",
-                  borderRadius:8,
-                  border:scanning?"3px solid "+C.ok:"2px solid rgba(255,255,255,0.9)",
-                  transition:"border .3s"
-                }}/>
-                {/* Cantos decorativos */}
-                {[["0%","0%","tl"],["0%","auto","bl"],["auto","0%","tr"],["auto","auto","br"]].map(([t,b,k])=>(
-                  <div key={k} style={{
-                    position:"absolute",
-                    top:t!=="auto"?"calc(38% - 2px)":undefined,
-                    bottom:b!=="auto"?"calc(38% - 2px)":undefined,
-                    left:k.endsWith("l")?"calc(4% - 2px)":undefined,
-                    right:k.endsWith("r")?"calc(4% - 2px)":undefined,
-                    width:18,height:18,
-                    borderTop:k.startsWith("t")?"3px solid #fff":undefined,
-                    borderBottom:k.startsWith("b")?"3px solid #fff":undefined,
-                    borderLeft:k.endsWith("l")?"3px solid #fff":undefined,
-                    borderRight:k.endsWith("r")?"3px solid #fff":undefined,
-                    borderRadius:k==="tl"?"3px 0 0 0":k==="tr"?"0 3px 0 0":k==="bl"?"0 0 0 3px":"0 0 3px 0"
-                  }}/>
-                ))}
-                {/* Label por cima do guia */}
-                <div style={{position:"absolute",top:"calc(38% - 22px)",left:"4%",right:"4%",
-                  textAlign:"center",color:"rgba(255,255,255,0.85)",fontSize:11,fontWeight:600,letterSpacing:.5}}>
-                  {scanning?"✓ LIDA":"ALINHE A MATRÍCULA"}
+              {/* Overlay: instrução simples — detecção automática */}
+              {!scanning&&(
+                <div style={{position:"absolute",top:10,left:0,right:0,
+                  textAlign:"center",pointerEvents:"none"}}>
+                  <span style={{
+                    background:"rgba(0,0,0,0.6)",color:"#fff",
+                    fontSize:11,fontWeight:700,letterSpacing:.8,
+                    padding:"4px 12px",borderRadius:20,
+                    textShadow:"0 1px 2px rgba(0,0,0,0.5)"
+                  }}>APONTE PARA O CARRO</span>
                 </div>
-              </div>
+              )}
               {/* Estado em sobreposição no fundo */}
               <div style={{position:"absolute",bottom:10,left:10,right:10,
                 background:scanning?"rgba(61,122,58,.92)":"rgba(0,0,0,.75)",
@@ -3104,7 +3155,7 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
                   boxShadow:scanning?`0 0 6px ${C.ok}`:"none"}}/>
                 <div style={{color:"#fff",fontSize:13,fontWeight:700,
                   letterSpacing:scanning?2:.5,fontFamily:"monospace"}}>
-                  {camTxt||( ocrReady?"Alinhe a matrícula no guia":"A carregar...")}
+                  {camTxt||(ocrReady?"Aponte para o carro":"A carregar OCR...")}
                 </div>
               </div>
             </div>
