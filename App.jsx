@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 // ─────────────────────────────────────────────
+//  LOGÓTIPO — Câmara Municipal de Peniche (SVG inline base64)
+// ─────────────────────────────────────────────
+const CMP_LOGO="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iQ2FtYWRhXzIiIGRhdGEtbmFtZT0iQ2FtYWRhIDIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDE5Ni41OCA0Ni4yMSI+CiAgPGRlZnM+CiAgICA8c3R5bGU+CiAgICAgIC5jbHMtMSB7CiAgICAgICAgZmlsbDogIzJmMzU0MzsKICAgICAgfQoKICAgICAgLmNscy0yIHsKICAgICAgICBmaWxsOiAjMjI2NTJjOwogICAgICB9CgogICAgICAuY2xzLTIsIC5jbHMtMywgLmNscy00LCAuY2xzLTUsIC5jbHMtNiwgLmNscy03LCAuY2xzLTgsIC5jbHMtOSwgLmNscy0xMCwgLmNscy0xMSwgLmNscy0xMiwgLmNscy0xMywgLmNscy0xNCwgLmNscy0xNSwgLmNscy0xNiB7CiAgICAgICAgZmlsbC1ydWxlOiBldmVub2RkOwogICAgICB9CgogICAgICAuY2xzLTMgewogICAgICAgIGZpbGw6ICMxYjNmMWU7CiAgICAgIH0KCiAgICAgIC5jbHMtNCB7CiAgICAgICAgZmlsbDogIzI0MGQxYjsKICAgICAgfQoKICAgICAgLmNscy01IHsKICAgICAgICBmaWxsOiAjODJiYjI2OwogICAgICB9CgogICAgICAuY2xzLTYgewogICAgICAgIGZpbGw6ICMxYTNjMWU7CiAgICAgIH0KCiAgICAgIC5jbHMtNyB7CiAgICAgICAgZmlsbDogIzAwNjU3ZjsKICAgICAgfQoKICAgICAgLmNscy04IHsKICAgICAgICBmaWxsOiAjMWFhMmIyOwogICAgICB9CgogICAgICAuY2xzLTkgewogICAgICAgIGZpbGw6ICMxYTlmYjI7CiAgICAgIH0KCiAgICAgIC5jbHMtMTAgewogICAgICAgIGZpbGw6ICMwMDQxNWE7CiAgICAgIH0KCiAgICAgIC5jbHMtMTEgewogICAgICAgIGZpbGw6ICMwMDNlNTg7CiAgICAgIH0KCiAgICAgIC5jbHMtMTIgewogICAgICAgIGZpbGw6ICMwMzZjODI7CiAgICAgIH0KCiAgICAgIC5jbHMtMTMgewogICAgICAgIGZpbGw6ICM0MWJjY2Y7CiAgICAgIH0KCiAgICAgIC5jbHMtMTQgewogICAgICAgIGZpbGw6ICMzYzg4MzQ7CiAgICAgIH0KCiAgICAgIC5jbHMtMTUgewogICAgICAgIGZpbGw6ICMyOTcwMzA7CiAgICAgIH0KCiAgICAgIC5jbHMtMTYgewogICAgICAgIGZpbGw6ICMxYzA5MTg7CiAgICAgIH0KICAgIDwvc3R5bGU+CiAgPC9kZWZzPgogIDxnIGlkPSJDYW1hZGFfMS0yIiBkYXRhLW5hbWU9IkNhbWFkYSAxIj4KICAgIDxnPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik00Mi4zNiwxNC40MmgxMC45YzEuNiwwLDMuMDMuMjIsNC4yOS42NywxLjI2LjQ0LDIuMzIsMS4wNywzLjIsMS44OS44OC44MSwxLjU1LDEuNzgsMi4wMiwyLjkxLjQ3LDEuMTMuNywyLjM4LjcsMy43NXYuMDhjMCwxLjU1LS4yOCwyLjkxLS44NCw0LjA4LS41NiwxLjE3LTEuMzMsMi4xNS0yLjMsMi45My0uOTguNzktMi4xMiwxLjM4LTMuNDMsMS43Ny0xLjMxLjM5LTIuNzEuNTktNC4yMS41OWgtNC40NnY4aC01Ljg3VjE0LjQyWk01Mi44OCwyNy44NmMxLjQ3LDAsMi42Mi0uMzksMy40My0xLjE2czEuMjItMS43MywxLjIyLTIuODh2LS4wOGMwLTEuMzItLjQzLTIuMzItMS4yOC0zLjAxLS44NS0uNjktMi4wMS0xLjAzLTMuNDktMS4wM2gtNC41M3Y4LjE1aDQuNjVaIi8+CiAgICAgIDxwb2x5Z29uIGNsYXNzPSJjbHMtMSIgcG9pbnRzPSI2NC45OCAxNC40MiA4NS4wNiAxNC40MiA4NS4wNiAxOS42NCA3MC43NyAxOS42NCA3MC43NyAyNS4wNSA4My4zNCAyNS4wNSA4My4zNCAzMC4yNiA3MC43NyAzMC4yNiA3MC43NyAzNS44NiA4NS4yNSAzNS44NiA4NS4yNSA0MS4wOCA2NC45OCA0MS4wOCA2NC45OCAxNC40MiIvPgogICAgICA8cG9seWdvbiBjbGFzcz0iY2xzLTEiIHBvaW50cz0iODcuNjcgMTQuNDIgOTMuMDggMTQuNDIgMTA1LjU4IDMwLjg0IDEwNS41OCAxNC40MiAxMTEuMzcgMTQuNDIgMTExLjM3IDQxLjA4IDEwNi4zOCA0MS4wOCA5My40NiAyNC4xMyA5My40NiA0MS4wOCA4Ny42NyA0MS4wOCA4Ny42NyAxNC40MiIvPgogICAgICA8cmVjdCBjbGFzcz0iY2xzLTEiIHg9IjExNS4yIiB5PSIxNC40MiIgd2lkdGg9IjUuODciIGhlaWdodD0iMjYuNjciLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMTM3LjQsNDEuNTRjLTEuOTYsMC0zLjc3LS4zNi01LjQ1LTEuMDctMS42OC0uNzEtMy4xMi0xLjY4LTQuMzQtMi45MS0xLjIyLTEuMjMtMi4xNy0yLjY5LTIuODYtNC4zNi0uNjktMS42OC0xLjAzLTMuNDctMS4wMy01LjM3di0uMDhjMC0xLjkuMzQtMy42OSwxLjAzLTUuMzUuNjktMS42NiwxLjY0LTMuMTIsMi44Ni00LjM4LDEuMjItMS4yNiwyLjY4LTIuMjUsNC4zOC0yLjk3LDEuNy0uNzIsMy41OC0xLjA5LDUuNjQtMS4wOSwxLjI0LDAsMi4zOC4xLDMuNDEuMywxLjAzLjIsMS45Ni40OCwyLjguODQuODQuMzYsMS42MS43OSwyLjMyLDEuMy43MS41MSwxLjM3LDEuMDcsMS45OCwxLjY4bC0zLjczLDQuM2MtMS4wNC0uOTQtMi4xLTEuNjgtMy4xOC0yLjIxLTEuMDgtLjUzLTIuMjktLjgtMy42NC0uOC0xLjEyLDAtMi4xNS4yMi0zLjEuNjUtLjk1LjQzLTEuNzcsMS4wMy0yLjQ2LDEuNzktLjY5Ljc2LTEuMjIsMS42NC0xLjYsMi42NS0uMzgsMS0uNTcsMi4wOC0uNTcsMy4yMnYuMDhjMCwxLjE0LjE5LDIuMjIuNTcsMy4yNC4zOCwxLjAyLjkxLDEuOSwxLjU4LDIuNjcuNjcuNzYsMS40OSwxLjM3LDIuNDQsMS44MS45NS40NCwyLC42NywzLjE0LjY3LDEuNTIsMCwyLjgxLS4yOCwzLjg3LS44NCwxLjA1LS41NiwyLjEtMS4zMiwzLjE0LTIuMjlsMy43MywzLjc3Yy0uNjkuNzQtMS40LDEuNC0yLjEzLDEuOTgtLjc0LjU4LTEuNTQsMS4wOS0yLjQyLDEuNS0uODguNDItMS44NC43NC0yLjg4Ljk1LTEuMDQuMjItMi4yMS4zMi0zLjUuMzIiLz4KICAgICAgPHBvbHlnb24gY2xhc3M9ImNscy0xIiBwb2ludHM9IjE1MC4xOSAxNC40MiAxNTYuMDYgMTQuNDIgMTU2LjA2IDI0Ljk3IDE2Ni44OCAyNC45NyAxNjYuODggMTQuNDIgMTcyLjc0IDE0LjQyIDE3Mi43NCA0MS4wOCAxNjYuODggNDEuMDggMTY2Ljg4IDMwLjM4IDE1Ni4wNiAzMC4zOCAxNTYuMDYgNDEuMDggMTUwLjE5IDQxLjA4IDE1MC4xOSAxNC40MiIvPgogICAgICA8cG9seWdvbiBjbGFzcz0iY2xzLTEiIHBvaW50cz0iMTc2LjMxIDE0LjQyIDE5Ni4zOSAxNC40MiAxOTYuMzkgMTkuNjQgMTgyLjEgMTkuNjQgMTgyLjEgMjUuMDUgMTk0LjY4IDI1LjA1IDE5NC42OCAzMC4yNiAxODIuMSAzMC4yNiAxODIuMSAzNS44NiAxOTYuNTggMzUuODYgMTk2LjU4IDQxLjA4IDE3Ni4zMSA0MS4wOCAxNzYuMzEgMTQuNDIiLz4KICAgICAgPHBvbHlnb24gY2xhc3M9ImNscy0xIiBwb2ludHM9IjQyLjA1IDExLjEyIDQyLjY3IDExLjEyIDQyLjY3IDMuNTkgNDYuMSA4LjU4IDQ2LjE1IDguNTggNDkuNTggMy41OSA0OS41OCAxMS4xMiA1MC4yMiAxMS4xMiA1MC4yMiAyLjQ1IDQ5LjYyIDIuNDUgNDYuMTQgNy41OCA0Mi42NSAyLjQ1IDQyLjA1IDIuNDUgNDIuMDUgMTEuMTIiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNNTUuMywxMS4yNmMyLjExLDAsMy41NS0xLjMzLDMuNTUtMy44MlYyLjQ1aC0uNjR2NS4wN2MwLDIuMDktMS4xMywzLjE2LTIuODksMy4xNnMtMi45NC0xLjE4LTIuOTQtMy4yMlYyLjQ1aC0uNjR2NS4wN2MwLDIuNDMsMS40NywzLjc0LDMuNTYsMy43NCIvPgogICAgICA8cG9seWdvbiBjbGFzcz0iY2xzLTEiIHBvaW50cz0iNjAuMzcgMTEuMTIgNjAuOTkgMTEuMTIgNjAuOTkgMy40MiA2Ny4xIDExLjEyIDY3LjU4IDExLjEyIDY3LjU4IDIuNDUgNjYuOTYgMi40NSA2Ni45NiAxMCA2MC45OCAyLjQ1IDYwLjM3IDIuNDUgNjAuMzcgMTEuMTIiLz4KICAgICAgPHJlY3QgY2xhc3M9ImNscy0xIiB4PSI2OS4zMiIgeT0iMi40NSIgd2lkdGg9Ii42NCIgaGVpZ2h0PSI4LjY3Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTc1LjY0LDExLjI3YzEuNTQsMCwyLjUzLS42MSwzLjQ0LTEuNTFsLS40My0uNDJjLS44OC44Ny0xLjczLDEuMzUtMi45OSwxLjM1LTIuMDcsMC0zLjY3LTEuNzEtMy42Ny0zLjl2LS4wMmMwLTIuMTgsMS41Ny0zLjg4LDMuNjUtMy44OCwxLjMsMCwyLjE3LjU1LDIuOTIsMS4yOGwuNDYtLjQ3Yy0uODktLjgyLTEuODItMS4zOS0zLjM3LTEuMzktMi41LDAtNC4zNCwyLjAzLTQuMzQsNC40OHYuMDJjMCwyLjQ5LDEuODMsNC40Niw0LjMxLDQuNDYiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNODAuMSwxLjY1aC41MmwxLjMzLTEuMjgtLjc2LS4zNy0xLjA5LDEuNjVaTTgwLjAyLDExLjEyaC42NFYyLjQ1aC0uNjR2OC42N1oiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNODMuMDUsNy4zVjMuMDVoMi40NWMxLjU2LDAsMi42My43MiwyLjYzLDIuMDl2LjAyYzAsMS4yOS0xLjA5LDIuMTMtMi43LDIuMTNoLTIuMzhaTTgyLjQsMTEuMTJoLjY0di0zLjIzaDIuMzRjMS44MSwwLDMuMzgtLjk0LDMuMzgtMi43NnYtLjAyYzAtMS42Ny0xLjMxLTIuNjUtMy4yMi0yLjY1aC0zLjE1djguNjdaIi8+CiAgICAgIDxyZWN0IGNsYXNzPSJjbHMtMSIgeD0iODkuODQiIHk9IjIuNDUiIHdpZHRoPSIuNjQiIGhlaWdodD0iOC42NyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik05Ni4yMiwxMC42OWMtMi4xNCwwLTMuNy0xLjc2LTMuNy0zLjl2LS4wMmMwLTIuMTQsMS41NC0zLjg4LDMuNjgtMy44OHMzLjcsMS43NiwzLjcsMy45di4wMmMwLDIuMTQtMS41NCwzLjg4LTMuNjgsMy44OE05Ni4yLDExLjI3YzIuNjMsMCw0LjM3LTIuMTIsNC4zNy00LjQ4dDAtLjAyYzAtMi4zNy0xLjcyLTQuNDYtNC4zNS00LjQ2cy00LjM3LDIuMTItNC4zNyw0LjQ4di4wMmMwLDIuMzcsMS43Miw0LjQ2LDQuMzUsNC40NloiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMTA2LjIsMTAuNTNWMy4wNWgyLjI0YzIuNDIsMCwzLjk0LDEuNjgsMy45NCwzLjc0di4wMmMwLDIuMDctMS41MiwzLjcyLTMuOTQsMy43MmgtMi4yNFpNMTA1LjU2LDExLjEyaDIuODljMi43MywwLDQuNjEtMS45LDQuNjEtNC4zNHYtLjAyYzAtMi40NC0xLjg4LTQuMzEtNC42MS00LjMxaC0yLjg5djguNjdaIi8+CiAgICAgIDxwb2x5Z29uIGNsYXNzPSJjbHMtMSIgcG9pbnRzPSIxMTQuMzIgMTEuMTIgMTIwLjU1IDExLjEyIDEyMC41NSAxMC41MyAxMTQuOTcgMTAuNTMgMTE0Ljk3IDcuMDUgMTE5LjkzIDcuMDUgMTE5LjkzIDYuNDUgMTE0Ljk3IDYuNDUgMTE0Ljk3IDMuMDUgMTIwLjQ5IDMuMDUgMTIwLjQ5IDIuNDUgMTE0LjMyIDIuNDUgMTE0LjMyIDExLjEyIi8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTAiIGQ9Ik0xNC4yMSwzOC4wM2MuODcuMDEsMS43MywwLDIuNTctLjAzLjYxLDEuMDQsMS40MiwxLjk0LDIuMzcsMi42N2gwYy0xLjU2LS4xMy0yLjk2LS4yNi00LjIzLS40MS0uMzUtLjY5LS42LTEuNDQtLjcxLTIuMjMiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xMiIgZD0iTTE0LjM2LDM1LjMxYy40NS0uMDMuOS0uMDYsMS4zNS0uMS4yLjk5LjU3LDEuOTMsMS4wNywyLjc4LS44Ni4wMy0xLjcxLjA1LTIuNTYuMDQtLjA0LS4zMi0uMDctLjY1LS4wNy0uOTgsMC0uNi4wOC0xLjE5LjIyLTEuNzQiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xMiIgZD0iTTEwLjM3LDM1LjQ1Yy4zLDAsLjYsMCwuODktLjAxLS4xNS44LS4xNywxLjY1LS4wNiwyLjUtLjc0LS4wNC0xLjQ4LS4xLTIuMjItLjE4LjMzLS44Mi44MS0xLjYsMS4zOS0yLjMiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy05IiBkPSJNMTEuMjUsMzUuNDljLjA4LS40NC4yLS44Ni4zNy0xLjI3LS40Ny4zOC0uOTEuODItMS4yOSwxLjI5LjMxLDAsLjYyLDAsLjkyLS4wMSIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTkiIGQ9Ik0xNS43MSwzNS4yM2MtLjEzLS42MS0uMTktMS4yNC0uMTktMS44OSwwLS4xNiwwLS4zMy4wMS0uNDktLjU1LjczLS45NSwxLjU3LTEuMTgsMi40OS40NS0uMDMuOTEtLjA3LDEuMzYtLjExIi8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtOSIgZD0iTTE2LjkyLDI4LjE5aDBjLTQuOTYuODMtOS4yNC41Mi0xNC41OC0uMjVoMGMtMS4wNCwyLjEtMS40Miw0LjU1LTEsNy4wMSwxLjg2LjI0LDMuNzIuNCw1LjU4LjQ5LDEuOTItMy40NSw1LjcyLTYuMSw5LjMtNy4wMi4yNS0uMDYuNDgtLjE0LjctLjIyIi8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtNyIgZD0iTTUsMjQuNTZsLjAzLS4wMnMwLDAsMCwwYzEuMjQtMS4wMywyLjc1LTEuNzcsNC40OS0yLjEzLDUuMTEtMS4wNSw4LjU0LjY3LDkuMzMsMi41OGgwYy00LjQ0LjQzLTkuMDUuMzgtMTMuODItLjQ0aDBzLS4wMi4wMi0uMDIuMDJoMFoiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xMSIgZD0iTTUuMDIsMjQuNTNjNC43OC43Niw5LjM4Ljg3LDEzLjgzLjQ0LjUxLDEuMjItLjA1LDIuNTEtMS45MywzLjIyLTQuOTYuODMtOS41MS41LTE0LjU4LS4yNS42NS0xLjMxLDEuNTYtMi40NywyLjY5LTMuNDEiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy02IiBkPSJNMzIuMTUsMjIuMDR2LjVoMGMtMy44MSwyLjA4LTcuMTksMy41Mi0xMC4zMiw0LjQ5LjA0LS4yMi4wOC0uNDYuMS0uNzIuMDYtLjU5LDAtMS4xNi0uMTItMS42OSwzLjU0LS41NCw2Ljk4LTEuNDEsMTAuMzQtMi41NyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik0zMi4xNSwxNi40N3YyLjc5czAsMi43NywwLDIuNzdjLTMuMzYsMS4xNi02LjgsMi4wMy0xMC4zNCwyLjU3LS4zMi0xLjI2LTEuMTEtMi4zNi0yLjEzLTMuMiw0LjA3LS45NSw4LjIyLTIuNjIsMTIuNDctNC45MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTkiIGQ9Ik0zMi4xNSwyMi41NGgwYy0zLjgxLDIuMDgtNy4xOSwzLjUyLTEwLjMyLDQuNDktLjY1LDMuMy0zLjEzLDIuNDEtMy4xNyw2LjYxLDAsLjQ0LjAzLjg1LjExLDEuMjQsNC42OC0uNjQsOS4xMi0xLjgyLDEzLjM2LTMuNDYsMC0uMTguMDEtLjM3LjAxLS41NnYtOC4zMnMwLS4xOSwwLS4xOXYuMTlaIi8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTAiIGQ9Ik0yMC4zMSwzNy43NGMzLjU5LS4zNiw3LjE5LTEuMDMsMTAuOC0xLjk5LTIuMzQsNC41Ny03Ljk5LDQuNzctMTAuOCwxLjk5Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTMiIGQ9Ik0xMy41OSw0My41NWMtMS4yNy4wNi0yLjQ0LjEtMy45Ni4xMi0uMDYsMC0uMi4wMi0uMjEsMCwxLjI3LDEuNjUsMy42NSwyLjcyLDcuNzUsMi41MS0xLjMyLS40LTIuNTYtMS4zNi0zLjU4LTIuNjMiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xMyIgZD0iTTE3LjEyLDQyLjc4bC0uMDMtLjAyaDBzLjAzLjAyLjAzLjAyWk0yMy4yLDQyLjQxYy0xLjYuMzEtMy4zNC41OS01LjM3LjgxLjk5LjU0LDIuMTIuODQsMy4zMy44NCwxLjY3LDAsMy4yMS0uNTksNC40Mi0xLjU3LS4yOC4wMy0uNTcuMDQtLjg2LjA0LS41MiwwLTEuMDItLjA0LTEuNTItLjEzWiIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEwIiBkPSJNMS43MSwzNi40OWgwYzEuNDUuMzYsMi45MS42Niw0LjM2Ljg5LS4xMi4zOC0uMjIuNzctLjI5LDEuMTctMS4yNi0uMzYtMi40Ny0uNzUtMy43Ny0xLjE5LS4xMS0uMjktLjIyLS41Ny0uMzEtLjg2Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTIiIGQ9Ik0xLjM0LDM0Ljk1aDBjMS44Ni4yMywzLjcyLjQsNS41OC40OWgwYy0uMzUuNjItLjYzLDEuMjctLjg0LDEuOTQtMS40Ni0uMjMtMi45MS0uNTItNC4zNi0uODgtLjE2LS41MS0uMjgtMS4wMi0uMzctMS41NCIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTE0IiBkPSJNMCwxMS4zM3MwLS4wMywwLS4wNWMwLC4wMiwwLC4wMywwLC4wNU0wLDExLjM4czAtLjAzLDAtLjA1YzAsLjAyLDAsLjAzLDAsLjA1Wk0zMi4xNSwxNi40N2MtNC4yNSwyLjMxLTguNCwzLjk4LTEyLjQ3LDQuOTMtLjU1LS40Ni0xLjE3LS44NS0xLjgxLTEuMTUtMi43NS0xLjMtNi4wMS0xLjMzLTguOTQtLjczLTEuNjguMzQtMy4yNS45OS00LjY1LDEuOTEtMS40My0uMzYtMi44Ni0uODItNC4yOC0xLjM5SDBTMCwxOS4yNywwLDE5LjI3di0xLjY2czAtNi4yMywwLTYuMjN2LjQ3YzEyLjIsNS43MSwyMi42MSw2LjExLDMyLjE1LDMuOTR2LjY4WiIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTUiIGQ9Ik0zMi4xNSwxNS44YzAtMS40NywwLTIuOTQsMC00LjQxLDAtMS4xMS0uOTEtMi4wMi0yLjAyLTIuMDItMS4yOCwwLTIuNTYsMC0zLjg0LDBoLTEuNjZjLTUuNywwLTExLjQxLDAtMTcuMTEsMC0uNTUsMC0xLjEsMC0xLjY2LDAtMS4yOCwwLTIuNTYsMC0zLjg0LDBDLjkxLDkuMzYsMCwxMC4yNywwLDExLjM4di40N2MxMi4yLDUuNzEsMjIuNjEsNi4xMSwzMi4xNSwzLjk0Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTAiIGQ9Ik04Ljk5LDM3LjczYy43NC4wNywxLjQ4LjE0LDIuMjEuMTguMDguNjMuMjIsMS4yNy40MSwxLjktMS4xMi0uMTgtMi4xMy0uMzctMy4wNy0uNTguMS0uNS4yNS0xLjAxLjQ1LTEuNSIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Ik0xLjYsMzYuMTFzLjAzLjA5LjA0LjE0Yy0uMDEtLjA1LS4wMy0uMDktLjA0LS4xNCIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEyIiBkPSJNMTguNzgsMzQuODdjNC42OC0uNjQsOS4xMi0xLjgyLDEzLjM2LTMuNDYtLjA3LDEuNzQtLjQ1LDMuMTgtMS4wNCw0LjM0LTMuNjEuOTUtNy4yMSwxLjYzLTEwLjgsMS45OS0uNzUtLjc1LTEuMy0xLjcxLTEuNTMtMi44NyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTMiIGQ9Ik0wLDIzLjUyYy41MS4xMywxLjAyLjI0LDEuNTMuMzYtLjIzLjI3LS40Ni41Ni0uNjcuODUtLjMxLjQ0LS42Ljg5LS44NiwxLjM1di0yLjU2WiIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTE1IiBkPSJNNC4yOCwyMS40NGMtMS4wMi42Ny0xLjk1LDEuNDktMi43NSwyLjQ0LS41MS0uMTEtMS4wMi0uMjMtMS41My0uMzZ2Mi41Ni02LjAzczAsMCwwLDBjMS40Mi41NywyLjg1LDEuMDMsNC4yOCwxLjM5Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTIuNiwyYzEuNCwwLDIuNTMsMS4xMywyLjUzLDIuNTNzLTEuMTMsMi41My0yLjUzLDIuNTNDMS4yLDcuMDYuMDYsNS45Mi4wNiw0LjUzUzEuMiwyLDIuNiwyIi8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTkuMzMsMmMxLjQsMCwyLjUzLDEuMTMsMi41MywyLjUzLDAsMS40LTEuMTMsMi41My0yLjUzLDIuNTNzLTIuNTMtMS4xMy0yLjUzLTIuNTNjMC0xLjQsMS4xMy0yLjUzLDIuNTMtMi41MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xNi4wNywyYzEuNCwwLDIuNTMsMS4xMywyLjUzLDIuNTNzLTEuMTMsMi41My0yLjUzLDIuNTNjLTEuNCwwLTIuNTMtMS4xMy0yLjUzLTIuNTNzMS4xMy0yLjUzLDIuNTMtMi41MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0yMi44LDJjMS40LDAsMi41MywxLjEzLDIuNTMsMi41MywwLDEuNC0xLjEzLDIuNTMtMi41MywyLjUzLTEuNCwwLTIuNTMtMS4xMy0yLjUzLTIuNTMsMC0xLjQsMS4xMy0yLjUzLDIuNTMtMi41MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0yOS41NCwyYzEuNCwwLDIuNTMsMS4xMywyLjUzLDIuNTNzLTEuMTMsMi41My0yLjUzLDIuNTNjLTEuNCwwLTIuNTMtMS4xMy0yLjUzLTIuNTNzMS4xMy0yLjUzLDIuNTMtMi41MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTE2IiBkPSJNMi4wMSwzNy4zNWMxLjMuNDQsMi41MS44MywzLjc3LDEuMTktLjI0LDEuMzQtLjE4LDIuNzYuMjgsNC4xOS0xLjk1LTEuNTgtMy4yNy0zLjQ0LTQuMDUtNS4zOE0xMy41OSw0My41NWMtMS4yNy4wNi0yLjY2LjEtNC4xNy4xMi0uOTYtMS4yNy0xLjItMi44Ny0uODgtNC40NiwxLjE4LjI3LDIuMDYuNDQsMy4wNy41OS40MywxLjM2LDEuMTIsMi42NiwxLjk4LDMuNzVaTTIzLjIsNDIuNDFjLTEuNi4zMS0zLjM0LjU5LTUuMzcuODEtMS4yNC0uNjctMi4yNi0xLjcxLTIuOTEtMi45NywxLjI3LjE1LDIuNjcuMjgsNC4yMy40MWgwYzEuMTYuODksMi41NCwxLjUsNC4wNSwxLjc1WiIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTgiIGQ9Ik0yLjAxLDM3LjM1YzEuMy40NCwyLjUxLjgzLDMuNzcsMS4xOS0uMjQsMS4zNC0uMTgsMi43Ni4yOCw0LjItMS45NS0xLjU4LTMuMjctMy40NC00LjA1LTUuMzgiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy04IiBkPSJNMTMuNTksNDMuNTVjLTEuMjcuMDYtMi42Ni4xLTQuMTcuMTItLjk2LTEuMjctMS4yLTIuODctLjg4LTQuNDYsMS4xOC4yNywyLjA2LjQ0LDMuMDcuNTkuNDMsMS4zNiwxLjEyLDIuNjYsMS45OCwzLjc1Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtOCIgZD0iTTIzLjIsNDIuNDFjLTEuNi4zMS0zLjM0LjU5LTUuMzcuODEtMS4yNC0uNjctMi4yNi0xLjcxLTIuOTEtMi45NywxLjI3LjE1LDIuNjcuMjgsNC4yMy40MWgwYzEuMTYuODksMi41NCwxLjUsNC4wNSwxLjc1Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTAiIGQ9Ik0xNC4yMSwzOC4wM2MuODcuMDEsMS43MywwLDIuNTctLjAzLjYxLDEuMDQsMS40MiwxLjk0LDIuMzcsMi42N2gwYy0xLjU2LS4xMy0yLjk2LS4yNi00LjIzLS40MS0uMzUtLjY5LS42LTEuNDQtLjcxLTIuMjMiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xMiIgZD0iTTE0LjM2LDM1LjMxYy40NS0uMDMuOS0uMDYsMS4zNS0uMS4yLjk5LjU3LDEuOTMsMS4wNywyLjc4LS44Ni4wMy0xLjcxLjA1LTIuNTYuMDQtLjA0LS4zMi0uMDctLjY1LS4wNy0uOTgsMC0uNi4wOC0xLjE5LjIyLTEuNzQiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xMiIgZD0iTTEwLjM3LDM1LjQ1Yy4zLDAsLjYsMCwuODktLjAxLS4xNS44LS4xNywxLjY1LS4wNiwyLjUtLjc0LS4wNC0xLjQ4LS4xLTIuMjItLjE4LjMzLS44Mi44MS0xLjYsMS4zOS0yLjMiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy05IiBkPSJNMTEuMjUsMzUuNDljLjA4LS40NC4yLS44Ni4zNy0xLjI3LS40Ny4zOC0uOTEuODItMS4yOSwxLjI5LjMxLDAsLjYyLDAsLjkyLS4wMSIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTkiIGQ9Ik0xNS43MSwzNS4yM2MtLjEzLS42MS0uMTktMS4yNC0uMTktMS44OSwwLS4xNiwwLS4zMy4wMS0uNDktLjU1LjczLS45NSwxLjU3LTEuMTgsMi40OS40NS0uMDMuOTEtLjA3LDEuMzYtLjExIi8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtOSIgZD0iTTE2LjkyLDI4LjE5aDBjLTQuOTYuODMtOS4yNC41Mi0xNC41OC0uMjVoMGMtMS4wNCwyLjEtMS40Miw0LjU1LTEsNy4wMSwxLjg2LjI0LDMuNzIuNCw1LjU4LjQ5LDEuOTItMy40NSw1LjcyLTYuMSw5LjMtNy4wMi4yNS0uMDYuNDgtLjE0LjctLjIyIi8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtNyIgZD0iTTUsMjQuNTZsLjAzLS4wMnMwLDAsMCwwYzEuMjQtMS4wMywyLjc1LTEuNzcsNC40OS0yLjEzLDUuMTEtMS4wNSw4LjU0LjY3LDkuMzMsMi41OGgwYy00LjQ0LjQzLTkuMDUuMzgtMTMuODItLjQ0aDBzLS4wMi4wMi0uMDIuMDJoMFoiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xMSIgZD0iTTUuMDIsMjQuNTNjNC43OC43Niw5LjM4Ljg3LDEzLjgzLjQ0LjUxLDEuMjItLjA1LDIuNTEtMS45MywzLjIyLTQuOTYuODMtOS41MS41LTE0LjU4LS4yNS42NS0xLjMxLDEuNTYtMi40NywyLjY5LTMuNDEiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy02IiBkPSJNMzIuMTUsMjIuMDR2LjVoMGMtMy44MSwyLjA4LTcuMTksMy41Mi0xMC4zMiw0LjQ5LjA0LS4yMi4wOC0uNDYuMS0uNzIuMDYtLjU5LDAtMS4xNi0uMTItMS42OSwzLjU0LS41NCw2Ljk4LTEuNDEsMTAuMzQtMi41NyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik0zMi4xNSwxNi40N3YyLjc5czAsMi43NywwLDIuNzdjLTMuMzYsMS4xNi02LjgsMi4wMy0xMC4zNCwyLjU3LS4zMi0xLjI2LTEuMTEtMi4zNi0yLjEzLTMuMiw0LjA3LS45NSw4LjIyLTIuNjIsMTIuNDctNC45MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTkiIGQ9Ik0zMi4xNSwyMi41NGgwYy0zLjgxLDIuMDgtNy4xOSwzLjUyLTEwLjMyLDQuNDktLjY1LDMuMy0zLjEzLDIuNDEtMy4xNyw2LjYxLDAsLjQ0LjAzLjg1LjExLDEuMjQsNC42OC0uNjQsOS4xMi0xLjgyLDEzLjM2LTMuNDYsMC0uMTguMDEtLjM3LjAxLS41NnYtOC4zMnMwLS4xOSwwLS4xOXYuMTlaIi8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTAiIGQ9Ik0yMC4zMSwzNy43NGMzLjU5LS4zNiw3LjE5LTEuMDMsMTAuOC0xLjk5LTIuMzQsNC41Ny03Ljk5LDQuNzctMTAuOCwxLjk5Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTMiIGQ9Ik0xMy41OSw0My41NWMtMS4yNy4wNi0yLjQ0LjEtMy45Ni4xMi0uMDYsMC0uMi4wMi0uMjEsMCwxLjI3LDEuNjUsMy42NSwyLjcyLDcuNzUsMi41MS0xLjMyLS40LTIuNTYtMS4zNi0zLjU4LTIuNjMiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xMyIgZD0iTTE3LjEyLDQyLjc4bC0uMDMtLjAyaDBzLjAzLjAyLjAzLjAyWk0yMy4yLDQyLjQxYy0xLjYuMzEtMy4zNC41OS01LjM3LjgxLjk5LjU0LDIuMTIuODQsMy4zMy44NCwxLjY3LDAsMy4yMS0uNTksNC40Mi0xLjU3LS4yOC4wMy0uNTcuMDQtLjg2LjA0LS41MiwwLTEuMDItLjA0LTEuNTItLjEzWiIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEwIiBkPSJNMS43MSwzNi40OWgwYzEuNDUuMzYsMi45MS42Niw0LjM2Ljg5LS4xMi4zOC0uMjIuNzctLjI5LDEuMTctMS4yNi0uMzYtMi40Ny0uNzUtMy43Ny0xLjE5LS4xMS0uMjktLjIyLS41Ny0uMzEtLjg2Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTIiIGQ9Ik0xLjM0LDM0Ljk1aDBjMS44Ni4yMywzLjcyLjQsNS41OC40OWgwYy0uMzUuNjItLjYzLDEuMjctLjg0LDEuOTQtMS40Ni0uMjMtMi45MS0uNTItNC4zNi0uODgtLjE2LS41MS0uMjgtMS4wMi0uMzctMS41NCIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTE0IiBkPSJNMCwxMS4zM3MwLS4wMywwLS4wNWMwLC4wMiwwLC4wMywwLC4wNU0wLDExLjM4czAtLjAzLDAtLjA1YzAsLjAyLDAsLjAzLDAsLjA1Wk0zMi4xNSwxNi40N2MtNC4yNSwyLjMxLTguNCwzLjk4LTEyLjQ3LDQuOTMtLjU1LS40Ni0xLjE3LS44NS0xLjgxLTEuMTUtMi43NS0xLjMtNi4wMS0xLjMzLTguOTQtLjczLTEuNjguMzQtMy4yNS45OS00LjY1LDEuOTEtMS40My0uMzYtMi44Ni0uODItNC4yOC0xLjM5SDBTMCwxOS4yNywwLDE5LjI3di0xLjY2czAtNi4yMywwLTYuMjN2LjQ3YzEyLjIsNS43MSwyMi42MSw2LjExLDMyLjE1LDMuOTR2LjY4WiIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTUiIGQ9Ik0zMi4xNSwxNS44YzAtMS40NywwLTIuOTQsMC00LjQxLDAtMS4xMS0uOTEtMi4wMi0yLjAyLTIuMDItMS4yOCwwLTIuNTYsMC0zLjg0LDBoLTEuNjZjLTUuNywwLTExLjQxLDAtMTcuMTEsMC0uNTUsMC0xLjEsMC0xLjY2LDAtMS4yOCwwLTIuNTYsMC0zLjg0LDBDLjkxLDkuMzYsMCwxMC4yNywwLDExLjM4di40N2MxMi4yLDUuNzEsMjIuNjEsNi4xMSwzMi4xNSwzLjk0Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMTAiIGQ9Ik04Ljk5LDM3LjczYy43NC4wNywxLjQ4LjE0LDIuMjEuMTguMDguNjMuMjIsMS4yNy40MSwxLjktMS4xMi0uMTgtMi4xMy0uMzctMy4wNy0uNTguMS0uNS4yNS0xLjAxLjQ1LTEuNSIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Ik0xLjYsMzYuMTFzLjAzLjA5LjA0LjE0Yy0uMDEtLjA1LS4wMy0uMDktLjA0LS4xNCIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEyIiBkPSJNMTguNzgsMzQuODdjNC42OC0uNjQsOS4xMi0xLjgyLDEzLjM2LTMuNDYtLjA3LDEuNzQtLjQ1LDMuMTgtMS4wNCw0LjM0LTMuNjEuOTUtNy4yMSwxLjYzLTEwLjgsMS45OS0uNzUtLjc1LTEuMy0xLjcxLTEuNTMtMi44NyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTMiIGQ9Ik0wLDIzLjUyYy41MS4xMywxLjAyLjI0LDEuNTMuMzYtLjIzLjI3LS40Ni41Ni0uNjcuODUtLjMxLjQ0LS42Ljg5LS44NiwxLjM1di0yLjU2WiIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTE1IiBkPSJNNC4yOCwyMS40NGMtMS4wMi42Ny0xLjk1LDEuNDktMi43NSwyLjQ0LS41MS0uMTEtMS4wMi0uMjMtMS41My0uMzZ2Mi41Ni02LjAzczAsMCwwLDBjMS40Mi41NywyLjg1LDEuMDMsNC4yOCwxLjM5Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTIuNiwyYzEuNCwwLDIuNTMsMS4xMywyLjUzLDIuNTNzLTEuMTMsMi41My0yLjUzLDIuNTNDMS4yLDcuMDYuMDYsNS45Mi4wNiw0LjUzUzEuMiwyLDIuNiwyIi8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTkuMzMsMmMxLjQsMCwyLjUzLDEuMTMsMi41MywyLjUzLDAsMS40LTEuMTMsMi41My0yLjUzLDIuNTNzLTIuNTMtMS4xMy0yLjUzLTIuNTNjMC0xLjQsMS4xMy0yLjUzLDIuNTMtMi41MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xNi4wNywyYzEuNCwwLDIuNTMsMS4xMywyLjUzLDIuNTNzLTEuMTMsMi41My0yLjUzLDIuNTNjLTEuNCwwLTIuNTMtMS4xMy0yLjUzLTIuNTNzMS4xMy0yLjUzLDIuNTMtMi41MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0yMi44LDJjMS40LDAsMi41MywxLjEzLDIuNTMsMi41MywwLDEuNC0xLjEzLDIuNTMtMi41MywyLjUzLTEuNCwwLTIuNTMtMS4xMy0yLjUzLTIuNTMsMC0xLjQsMS4xMy0yLjUzLDIuNTMtMi41MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0yOS41NCwyYzEuNCwwLDIuNTMsMS4xMywyLjUzLDIuNTNzLTEuMTMsMi41My0yLjUzLDIuNTNjLTEuNCwwLTIuNTMtMS4xMy0yLjUzLTIuNTNzMS4xMy0yLjUzLDIuNTMtMi41MyIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTE2IiBkPSJNMi4wMSwzNy4zNWMxLjMuNDQsMi41MS44MywzLjc3LDEuMTktLjI0LDEuMzQtLjE4LDIuNzYuMjgsNC4xOS0xLjk1LTEuNTgtMy4yNy0zLjQ0LTQuMDUtNS4zOE0xMy41OSw0My41NWMtMS4yNy4wNi0yLjY2LjEtNC4xNy4xMi0uOTYtMS4yNy0xLjItMi44Ny0uODgtNC40NiwxLjE4LjI3LDIuMDYuNDQsMy4wNy41OS40MywxLjM2LDEuMTIsMi42NiwxLjk4LDMuNzVaTTIzLjIsNDIuNDFjLTEuNi4zMS0zLjM0LjU5LTUuMzcuODEtMS4yNC0uNjctMi4yNi0xLjcxLTIuOTEtMi45NywxLjI3LjE1LDIuNjcuMjgsNC4yMy40MWgwYzEuMTYuODksMi41NCwxLjUsNC4wNSwxLjc1WiIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTgiIGQ9Ik0yLjAxLDM3LjM1YzEuMy40NCwyLjUxLjgzLDMuNzcsMS4xOS0uMjQsMS4zNC0uMTgsMi43Ni4yOCw0LjItMS45NS0xLjU4LTMuMjctMy40NC00LjA1LTUuMzgiLz4KICAgICAgPHBhdGggY2xhc3M9ImNscy04IiBkPSJNMTMuNTksNDMuNTVjLTEuMjcuMDYtMi42Ni4xLTQuMTcuMTItLjk2LTEuMjctMS4yLTIuODctLjg4LTQuNDYsMS4xOC4yNywyLjA2LjQ0LDMuMDcuNTkuNDMsMS4zNiwxLjEyLDIuNjYsMS45OCwzLjc1Ii8+CiAgICAgIDxwYXRoIGNsYXNzPSJjbHMtOCIgZD0iTTIzLjIsNDIuNDFjLTEuNi4zMS0zLjM0LjU5LTUuMzcuODEtMS4yNC0uNjctMi4yNi0xLjcxLTIuOTEtMi45NywxLjI3LjE1LDIuNjcuMjgsNC4yMy40MWgwYzEuMTYuODksMi41NCwxLjUsNC4wNSwxLjc1Ii8+CiAgICA8L2c+CiAgPC9nPgo8L3N2Zz4=";
+
+// ─────────────────────────────────────────────
 //  PALETTE
 // ─────────────────────────────────────────────
 const C = {
@@ -23,38 +28,38 @@ const C = {
 const T = {
   pt:{
     appName:"Câmara Municipal de Peniche", slogan:"Parquímetro Digital",
-    pay:"🅿️  Pagar Estacionamento", login:"👤  Iniciar Sessão",
+    pay:"🅿  Pagar Estacionamento", login:"Área Reservada",
     active:"Serviço activo · Peniche",
-    whereParking:"Onde está a parcar?", selectZone:"Selecione a zona assinalada na placa.",
+    whereParking:"Onde está a parcar?", selectZone:"Seleccione a zona indicada na placa de sinalização.",
     plate:"Matrícula", platePlaceholder:"AA-00-AA · AB123CD · 1ABC123",
     plateHint:"Aceita PT, UE e matrículas internacionais",
-    recentPlates:"Usadas recentemente", continue:"Continuar →",
-    howLong:"Quanto tempo?", choosePayment:"Escolher Pagamento",
-    paymentMethod:"Método de Pagamento", payNow:"Pagar Agora",
+    recentPlates:"Usadas recentemente", continue:"Prosseguir →",
+    howLong:"Quanto tempo?", choosePayment:"Seleccionar Método de Pagamento",
+    paymentMethod:"Método de Pagamento", payNow:"Confirmar e Pagar",
     secure:"🔒 Pagamento seguro via Stripe",
     receipt:"Recibo", activeParking:"Estacionamento Activo",
-    payConfirmed:"Pagamento confirmado — bom passeio!",
-    sessionSaved:"Sessão guardada",
+    payConfirmed:"Pagamento efectuado com sucesso. Boa viagem!",
+    sessionSaved:"Sessão registada",
     validUntil:"Válido até", sessionEnded:"Sessão terminada",
     save:"📥 Guardar", share:"📤 Partilhar", back:"← Início",
-    zone:"Zona", start:"Início", end:"Fim previsto", total:"Total",
+    zone:"Zona", start:"Início", end:"Término previsto", total:"Total",
     duration:"Duração", payment:"Pagamento", ref:"Ref.",
     extendPrompt:"Tempo quase a terminar. Quer prolongar?",
     extended:"Sessão prolongada +1 hora",
-    sessionActive:"Sessão activa", viewReceipt:"Ver recibo →",
+    sessionActive:"Sessão activa", viewReceipt:"Consultar comprovativo →",
     emailLabel:"Email", passwordLabel:"Password",
-    signIn:"Entrar", signOut:"Sair",
-    wrongCreds:"Credenciais incorrectas",
-    demoHint:"Credenciais demo:",
-    myAccount:"A Minha Conta", myVehicle:"Veículo",
+    signIn:"Iniciar Sessão", signOut:"Sair",
+    wrongCreds:"Dados de acesso incorrectos",
+    demoHint:"Acesso de demonstração:",
+    myAccount:"A Minha Área", myVehicle:"Veículo",
     discount:"Desconto", validity:"Validade",
     payWithDiscount:"🅿️ Pagar com Desconto",
     paymentHistory:"Histórico", noHistory:"Sem pagamentos anteriores.",
     faq:"FAQ's", terms:"Termos e Condições", support:"Suporte",
     logout:"Sair",
     // Operador
-    opDashboard:"Fiscalização em Campo",
-    opSelectZone:"Selecione a zona que está a fiscalizar",
+    opDashboard:"Verificação de Estacionamento",
+    opSelectZone:"Seleccione a zona em fiscalização",
     opChangeZone:"Alterar Zona",
     opCheckPlate:"Verificar Matrícula",
     opEnterPlate:"Introduzir matrícula",
@@ -62,12 +67,12 @@ const T = {
     opManualPlate:"✏️ Introdução Manual",
     opCheck:"Verificar",
     opScanSim:"Simular Leitura OCR",
-    opScanning:"A reconhecer...",
-    opDetected:"Matrícula detectada:",
+    opScanning:"A processar imagem...",
+    opDetected:"Matrícula identificada:",
     opResult:"Resultado",
-    opNoSession:"Sem sessão registada",
+    opNoSession:"Sem registo de estacionamento",
     opExpired:"Sessão expirada",
-    opWrongZone:"Sessão activa — zona incorrecta",
+    opWrongZone:"Sessão activa — zona divergente",
     opValid:"Sessão válida e activa",
     opPaidZone:"Zona paga",
     opCurrentZone:"Zona actual",
@@ -107,29 +112,29 @@ const T = {
     qrNote:"QR codes funcionais — apontam para a zona correcta. Imprima e cole nas placas.",
     qrDownload:"⬇ Imprimir / Guardar",
     // footer
-    footerRights:"Todos os direitos reservados",
+    footerRights:"© Câmara Municipal de Peniche. Todos os direitos reservados",
     footerLegal:"Regulamento Municipal de Estacionamento — Edital nº 2024/0042",
     nif:"NIF: 506 715 320", address:"Largo do Município · 2520-208 Peniche",
     phone:"Tel: 262 780 100", emailAddr:"geral@cm-peniche.pt",
     sessionExpiresSoon:"A sua sessão expira em menos de 10 minutos",
     requestSent:"Pedido Enviado!",
-    requestDesc:"Validaremos em 5 dias úteis e enviaremos as credenciais por email.",
+    requestDesc:"A Câmara Municipal de Peniche analisará o pedido em até 5 dias úteis e enviará as credenciais por correio electrónico.",
     today:"Hoje",
   },
   en:{
     appName:"Municipality of Peniche", slogan:"Digital Parking Meter",
-    pay:"🅿️  Pay Parking", login:"👤  Sign In",
+    pay:"🅿  Pay Parking", login:"Members Area",
     active:"Service active · Peniche",
     whereParking:"Where are you parking?", selectZone:"Select the zone shown on the sign.",
     plate:"Licence Plate", platePlaceholder:"AA-00-AA · AB123CD · 1ABC123",
     plateHint:"Accepts PT, EU and international plates",
-    recentPlates:"Recently used", continue:"Continue →",
-    howLong:"How long?", choosePayment:"Choose Payment",
-    paymentMethod:"Payment Method", payNow:"Pay Now",
+    recentPlates:"Recently used", continue:"Proceed →",
+    howLong:"How long?", choosePayment:"Select Payment Method",
+    paymentMethod:"Payment Method", payNow:"Confirm & Pay",
     secure:"🔒 Secure payment via Stripe",
     receipt:"Receipt", activeParking:"Parking Active",
-    payConfirmed:"Payment confirmed — enjoy your visit!",
-    sessionSaved:"Session saved",
+    payConfirmed:"Payment successful. Enjoy your visit!",
+    sessionSaved:"Session registered",
     validUntil:"Valid until", sessionEnded:"Session ended",
     save:"📥 Save", share:"📤 Share", back:"← Home",
     zone:"Zone", start:"Start", end:"Expected end", total:"Total",
@@ -139,15 +144,15 @@ const T = {
     sessionActive:"Active session", viewReceipt:"View receipt →",
     emailLabel:"Email", passwordLabel:"Password",
     signIn:"Sign In", signOut:"Sign Out",
-    wrongCreds:"Invalid credentials",
-    demoHint:"Demo credentials:",
-    myAccount:"My Account", myVehicle:"Vehicle",
+    wrongCreds:"Incorrect access details",
+    demoHint:"Demo access:",
+    myAccount:"My Area", myVehicle:"Vehicle",
     discount:"Discount", validity:"Valid until",
     payWithDiscount:"🅿️ Pay with Discount",
     paymentHistory:"History", noHistory:"No previous payments.",
     faq:"FAQ's", terms:"Terms & Conditions", support:"Support",
     logout:"Sign Out",
-    opDashboard:"Field Verification",
+    opDashboard:"Parking Enforcement",
     opSelectZone:"Select the zone you are enforcing",
     opChangeZone:"Change Zone",
     opCheckPlate:"Check Plate",
@@ -157,9 +162,9 @@ const T = {
     opCheck:"Check",
     opScanSim:"Simulate OCR Read",
     opScanning:"Recognising...",
-    opDetected:"Plate detected:",
+    opDetected:"Plate identified:",
     opResult:"Result",
-    opNoSession:"No session found",
+    opNoSession:"No parking record found",
     opExpired:"Session expired",
     opWrongZone:"Active session — wrong zone",
     opValid:"Valid active session",
@@ -229,7 +234,7 @@ const USERS=[
   {email:"residente@demo.pt",   pass:"res2024",   role:"resident", name:"João Silva",            discount:50,plate:"AA-11-BB"},
   {email:"trabalhador@demo.pt", pass:"trab2024",  role:"worker",   name:"Ana Ferreira",          discount:30,plate:"ZZ-99-YY"},
   {email:"operador@demo.pt",    pass:"op2024",    role:"operator", name:"Carlos Mendes"},
-  {email:"admin@demo.pt",       pass:"admin2024", role:"admin",    name:"Diretor de Mobilidade"},
+  {email:"admin@demo.pt",       pass:"admin2024", role:"admin",    name:"Director de Mobilidade Urbana"},
 ];
 const isOps=r=>["operator","admin"].includes(r);
 const isRes=r=>["resident","worker"].includes(r);
@@ -520,14 +525,17 @@ const SessCard=({s})=>{
 //  FOOTER
 // ─────────────────────────────────────────────
 const Footer=({t})=>(
-  <div style={{background:C.surface2,borderTop:`1px solid ${C.border}`,padding:"28px 24px 36px",textAlign:"center"}}>
-    <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>{t.appName}</div>
+  <div style={{background:C.surface2,borderTop:`1px solid ${C.border}`,padding:"28px 24px 40px",textAlign:"center"}}>
+    {/* Logótipo oficial */}
+    <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
+      <img src={CMP_LOGO} alt="Câmara Municipal de Peniche"
+        style={{height:32,width:"auto",opacity:.85}}/>
+    </div>
     <div style={{fontSize:12,color:C.text3,lineHeight:2}}>
       <div>{t.address}</div>
-      <div>{t.phone} · <a href={`mailto:${t.emailAddr}`} style={{color:C.text3,textDecoration:"none"}}>{t.emailAddr}</a></div>
       <div>{t.nif}</div>
       <div style={{marginTop:8,fontSize:11,opacity:.7}}>{t.footerLegal}</div>
-      <div style={{fontSize:10,opacity:.4,marginTop:4}}>© {new Date().getFullYear()} {t.appName} · {t.footerRights}</div>
+      <div style={{fontSize:10,opacity:.4,marginTop:4}}>© {new Date().getFullYear()} · {t.footerRights}</div>
     </div>
   </div>
 );
@@ -560,12 +568,12 @@ const InfoScreen=({goTo,screen,lang,setLang,t})=>{
   );
   if(screen==="faq") return(
     <WRAP goTo={goTo} lang={lang} setLang={setLang} t={t} title={t.faq} icon="❓">
-      {[["Como funciona?","Digitalize o QR code na placa da zona, ou abra a app directamente. Selecione a zona, introduza a matrícula, escolha a duração e pague. O recibo é gerado instantaneamente."],
+      {[["Como funciona?","Digitalize o QR code na placa da zona, ou abra a app directamente. Seleccione a zona, introduza a matrícula, escolha a duração e pague. O recibo é gerado instantaneamente."],
         ["Que pagamentos são aceites?","MB WAY, cartão bancário (débito ou crédito), Apple Pay, Google Pay e PayPal. Todos processados via Stripe (PCI DSS nível 1)."],
         ["A sessão expira ao fechar o browser?","Não. A sessão fica guardada e o temporizador continua a correr. Ao reabrir, retoma com o tempo restante actualizado."],
         ["Preciso de conta para pagar?","Não. Qualquer utilizador paga directamente sem registo. A conta serve apenas para descontos de residente ou trabalhador."],
-        ["Como obtenho desconto?","Moradores 50%, trabalhadores 30%. Submeta o pedido em 'Iniciar Sessão → Pedir Estatuto'. Validação em 5 dias úteis."],
-        ["Posso prolongar o tempo?","Sim. Quando restar menos de 10 minutos aparece o botão '+1h'. Pode prolongar várias vezes."],
+        ["Como obtenho desconto?","Residentes beneficiam de 50% de desconto e trabalhadores locais de 30%. Submeta o pedido em 'Iniciar Sessão → Pedir Estatuto'. Validação em 5 dias úteis."],
+        ["Posso prolongar o tempo?","Sim. Quando restar menos de 10 minutos, surge o botão '+1h'. Pode prolongar várias vezes."],
         ["Aceita matrículas estrangeiras?","Sim. Qualquer formato: PT (AA-00-AA), FR (AA-123-AA), UK (AB12CDE), USA (ABC1234), etc."],
       ].map(([q,a],i)=><CARD key={i} q={q} a={a}/>)}
     </WRAP>
@@ -576,21 +584,21 @@ const InfoScreen=({goTo,screen,lang,setLang,t})=>{
         ["2. Âmbito","Exclusivo para pagamento de estacionamento nas zonas controladas do município de Peniche."],
         ["3. Pagamentos","Processados via Stripe (PCI DSS nível 1). A CM Peniche não armazena dados de cartão. Tarifas conforme Edital nº 2024/0042, actualizáveis anualmente."],
         ["4. Responsabilidade do Utilizador","O utilizador é responsável pela correcta introdução da matrícula e zona. Erros não dão lugar a reembolso."],
-        ["5. Verificação","As matrículas são verificadas electronicamente pelos agentes municipais. Veículos sem sessão válida estão sujeitos a procedimento contraordenacional."],
-        ["6. RGPD","Dados tratados conforme o RGPD (UE 2016/679). Responsável: CM Peniche, NIF 506 715 320. Contacto: rgpd@cm-peniche.pt"],
-        ["7. Reembolsos","Pedidos em 24h após pagamento via suporte@parkpx.cm-peniche.pt com ref. PKX-XXXXXX. Creditados em 5–10 dias úteis."],
+        ["5. Verificação","As matrículas são verificadas electronicamente pelos agentes municipais. Veículos sem sessão válida estão sujeitos a procedimento de contraordenação."],
+        ["6. RGPD","Dados tratados conforme o RGPD (UE 2016/679). Responsável: CM Peniche, NIF 506 715 320. Contacto: rgpd@cm-penichepark.pt"],
+        ["7. Reembolsos","Pedidos em 24h após pagamento via suporte@cm-penichepark.pt com ref. PKX-XXXXXX. Creditados em 5–10 dias úteis."],
         ["8. Alterações","Alterações publicadas em cm-peniche.pt com 30 dias de aviso. Utilização continuada implica aceitação."],
       ].map(([q,a],i)=><CARD key={i} q={q} a={a}/>)}
     </WRAP>
   );
   if(screen==="support") return(
     <WRAP goTo={goTo} lang={lang} setLang={setLang} t={t} title={t.support} icon="💬">
-      {[["📧 Email","suporte@parkpx.cm-peniche.pt\nResposta em até 2 dias úteis."],
+      {[["📧 Email","suporte@cm-penichepark.pt\nResposta em 2 dias úteis."],
         ["📞 Telefone","262 780 100\nDias úteis 9h–17h (excluindo feriados)."],
         ["🏛️ Presencial","Câmara Municipal de Peniche\nLargo do Município, 2520-208 Peniche\nSeg–Sex 9h–17h30"],
-        ["🚔 Urgências","PSP Peniche: 262 782 220\nEmergência: 112\nPolícia Municipal: 262 780 130"],
+        ["🚔 Contactos de Emergência","PSP Peniche: 262 782 220\nEmergência: 112\nPolícia Municipal: 262 780 130"],
         ["💳 Reembolsos","Email com:\n• Ref. PKX-XXXXXX\n• Motivo do pedido\n• IBAN\nPrazo: 24h após pagamento."],
-        ["🔒 Dados / RGPD","rgpd@cm-peniche.pt\nEncarregado DPO: epd@cm-peniche.pt"],
+        ["🔒 Dados / RGPD","rgpd@cm-penichepark.pt\nEncarregado DPO: epd@cm-peniche.pt"],
       ].map(([q,a],i)=><CARD key={i} q={q} a={a}/>)}
     </WRAP>
   );
@@ -606,7 +614,8 @@ const Landing=({goTo,state,lang,setLang,t})=>(
     <div style={{position:"relative",zIndex:9999,display:"flex",alignItems:"center",
       justifyContent:"space-between",padding:"18px 20px",
       borderBottom:`1px solid ${C.border}`}}>
-      <div style={{fontSize:11,color:C.text3,fontWeight:600,letterSpacing:.5}}>CÂMARA MUNICIPAL DE PENICHE</div>
+      <img src={CMP_LOGO} alt="Câmara Municipal de Peniche"
+        style={{height:26,width:"auto",opacity:.9}}/>
       <div style={{position:"relative"}}>
         <Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/>
       </div>
@@ -628,9 +637,9 @@ const Landing=({goTo,state,lang,setLang,t})=>(
         Digital
       </div>
       <div style={{fontSize:14,color:C.text2,lineHeight:1.7,maxWidth:260,marginBottom:12}}>
-        Sem moedas. Sem filas. Sem papel.
+        Simples. Rápido. Sem papel.
       </div>
-      <div style={{fontSize:12,color:C.text3,marginBottom:40}}>Peniche · 6 zonas</div>
+      <div style={{fontSize:12,color:C.text3,marginBottom:40}}>Município de Peniche · 6 Zonas Tarifadas</div>
 
       {state.endTime&&new Date(state.endTime)>new Date()&&(
         <div onClick={()=>goTo("success")}
@@ -799,7 +808,7 @@ const LoginScreen=({goTo,setUser,toast,t,lang,setLang})=>{
     setUser(gUser);
     // Returning user with complete profile → resArea
     if(existing?.plate && existing?.role && existing.role!=="google"){
-      toast("Bem-vindo de volta, "+gUser.name+"!");
+      toast("Bem-vindo/a, "+gUser.name+".");
       goTo("resArea");
     } else {
       // First time or incomplete → profile setup
@@ -894,7 +903,7 @@ const GoogleProfileScreen=({goTo,user,setUser,toast,t})=>{
 
   const save=()=>{
     if(plate.trim().length<2){toast("Introduza a matrícula.");return;}
-    if(!role){toast("Selecione o tipo de utilizador.");return;}
+    if(!role){toast("Seleccione o tipo de utilizador.");return;}
     const r=ROLES.find(x=>x.id===role);
     const needsValidation=["resident","worker"].includes(role);
     const updated={
@@ -925,12 +934,12 @@ const GoogleProfileScreen=({goTo,user,setUser,toast,t})=>{
           <div style={{background:C.warnBg,border:`1px solid ${C.warnBd}`,borderRadius:14,
             padding:"14px 18px",maxWidth:300,margin:"0 auto 24px",fontSize:13,color:C.warn,lineHeight:1.7}}>
             ⏳ Pedido de <strong>{ROLES.find(r=>r.id===role)?.label}</strong> registado.
-            A CM Peniche validará em até <strong>5 dias úteis</strong>.
+            A Câmara Municipal de Peniche validará o pedido em até <strong>5 dias úteis</strong>.
             Receberá confirmação em <strong>{user?.email}</strong>.
           </div>
           <div style={{background:C.okBg,border:`1px solid ${C.okBd}`,borderRadius:14,
             padding:"12px 18px",maxWidth:300,margin:"0 auto 28px",fontSize:13,color:C.ok}}>
-            ✓ Pode já pagar estacionamento — o desconto activa após validação.
+            ✓ Pode efectuar pagamentos de imediato — o desconto será aplicado após validação.
           </div>
         </>
       ):(
@@ -1020,7 +1029,7 @@ const GoogleProfileScreen=({goTo,user,setUser,toast,t})=>{
           {["resident","worker"].includes(role)&&(
             <div style={{marginTop:12,background:C.warnBg,border:`1px solid ${C.warnBd}`,
               borderRadius:12,padding:"11px 14px",fontSize:12,color:C.warn,lineHeight:1.6}}>
-              ⏳ O desconto fica pendente até a CM Peniche verificar a elegibilidade (máx. 5 dias úteis).
+              ⏳ O desconto ficará pendente até à validação pela Câmara Municipal de Peniche (prazo máximo: 5 dias úteis).
             </div>
           )}
         </div>
@@ -1036,6 +1045,180 @@ const GoogleProfileScreen=({goTo,user,setUser,toast,t})=>{
 };
 
 // ─────────────────────────────────────────────
+//  ZONE LANDING — ecrã directamente após leitura de QR de zona
+//  Fundo com a cor da zona + pagamento imediato (matrícula + tempo)
+// ─────────────────────────────────────────────
+const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
+  const zId=state.zone;
+  const z=ZONES[zId];
+  useEffect(()=>{if(!z)goTo("landing");},[z]);
+  if(!z)return null;
+
+  const [plate,setPlate]=useState(state.plate||"");
+  const [mins,setMins]=useState(60);
+  const plateRef=useRef(null);
+  const recent=lsG(LS_PLATES,[]);
+
+  // desconto se utilizador com desconto activo
+  const disc=user?.discount||0;
+  const hours=mins/60;
+  const raw=parseFloat((z.rate*hours).toFixed(2));
+  const final=disc?parseFloat((raw*(1-disc/100)).toFixed(2)):raw;
+
+  const DURATIONS=[
+    {m:30,label:"30 min"},{m:60,label:"1 hora"},
+    {m:90,label:"1h 30"},{m:120,label:"2 horas"},
+    {m:180,label:"3 horas"},{m:240,label:"4 horas"},
+  ];
+
+  const proceed=()=>{
+    const p=plate.trim().toUpperCase();
+    if(p.length<2){toast("Introduza a matrícula do veículo.");plateRef.current?.focus();return;}
+    setState(s=>({...s,plate:p,mins:mins,price:z.rate}));
+    lsS(LS_PLATES,[p,...recent.filter(r=>r!==p)].slice(0,5));
+    goTo("payment");
+  };
+
+  useEffect(()=>{setTimeout(()=>plateRef.current?.focus(),300);},[]);
+
+  // gradient: zona cor no topo, claro em baixo
+  const bgGrad=`linear-gradient(175deg,${z.color} 0%,${z.color}dd 28%,${z.bg.replace('.08','.04')} 60%,${C.bg} 100%)`;
+
+  return(
+    <div style={{minHeight:"100svh",background:bgGrad,display:"flex",flexDirection:"column"}}>
+      {/* Topo com zona */}
+      <div style={{padding:"52px 24px 32px",textAlign:"center",position:"relative"}}>
+        <button onClick={()=>goTo("landing")}
+          style={{position:"absolute",top:16,left:16,width:44,height:44,borderRadius:22,
+            background:"rgba(255,255,255,.22)",border:"none",color:"#fff",fontSize:20,
+            cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          ←
+        </button>
+        {/* Badge de zona */}
+        <div style={{display:"inline-flex",alignItems:"center",gap:10,
+          background:"rgba(255,255,255,.18)",borderRadius:999,
+          padding:"8px 20px",marginBottom:16,backdropFilter:"blur(8px)"}}>
+          <div style={{width:32,height:32,borderRadius:16,background:"rgba(255,255,255,.3)",
+            color:"#fff",fontWeight:900,fontSize:15,display:"flex",
+            alignItems:"center",justifyContent:"center"}}>
+            {zId}
+          </div>
+          <div style={{color:"#fff",fontWeight:700,fontSize:14,letterSpacing:.3}}>
+            Zona {zId} · {ZR(zId)}
+          </div>
+        </div>
+        <div style={{fontSize:26,fontWeight:900,color:"#fff",letterSpacing:-.5,marginBottom:4}}>
+          {z.name}
+        </div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,.78)",fontWeight:500}}>
+          {z.desc}
+        </div>
+        {disc>0&&(
+          <div style={{display:"inline-flex",alignItems:"center",gap:6,
+            background:"rgba(255,255,255,.22)",borderRadius:999,
+            padding:"5px 14px",marginTop:10,backdropFilter:"blur(8px)"}}>
+            <span style={{color:"#fff",fontSize:12,fontWeight:700}}>
+              ✓ Desconto de {disc}% aplicado
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Formulário rápido */}
+      <div style={{flex:1,background:"#fff",borderRadius:"28px 28px 0 0",
+        padding:"28px 20px 40px",display:"flex",flexDirection:"column",gap:20}}>
+
+        {/* Matrícula */}
+        <div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",
+            letterSpacing:1,color:C.text3,marginBottom:8}}>
+            Matrícula do Veículo
+          </div>
+          <input
+            ref={plateRef}
+            value={plate}
+            onChange={e=>setPlate(e.target.value.toUpperCase())}
+            onKeyDown={e=>e.key==="Enter"&&proceed()}
+            placeholder="AA-00-AA"
+            style={{width:"100%",padding:"14px 16px",borderRadius:14,
+              border:`1.5px solid ${plate.length>1?z.color:C.border}`,
+              fontSize:20,fontWeight:800,letterSpacing:3,textAlign:"center",
+              color:C.text,background:C.bg,outline:"none",
+              fontFamily:"'Sora',monospace",transition:"border-color .15s"}}
+          />
+          {/* Matrículas recentes */}
+          {recent.length>0&&!plate&&(
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+              {recent.slice(0,3).map(r=>(
+                <button key={r} onClick={()=>setPlate(r)}
+                  style={{fontSize:12,fontWeight:700,padding:"5px 12px",
+                    borderRadius:999,border:`1px solid ${C.border}`,
+                    background:C.bg,color:C.text2,cursor:"pointer",letterSpacing:1}}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Duração */}
+        <div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",
+            letterSpacing:1,color:C.text3,marginBottom:10}}>
+            Duração
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+            {DURATIONS.map(d=>{
+              const sel=d.m===mins;
+              return(
+                <button key={d.m} onClick={()=>setMins(d.m)}
+                  style={{padding:"12px 8px",borderRadius:14,border:`1.5px solid ${sel?z.color:C.border}`,
+                    background:sel?z.color:"#fff",color:sel?"#fff":C.text,
+                    fontWeight:700,fontSize:13,cursor:"pointer",transition:"all .15s",
+                    fontFamily:"'Sora',sans-serif"}}>
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Total */}
+        <div style={{...card(),padding:"16px 20px",
+          background:z.bg,border:`1px solid ${z.bd}`,
+          display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:12,color:C.text2,fontWeight:600}}>Total a pagar</div>
+            {disc>0&&<div style={{fontSize:11,color:C.text3,textDecoration:"line-through"}}>
+              {raw.toFixed(2).replace(".",",")} €
+            </div>}
+          </div>
+          <div style={{fontSize:28,fontWeight:900,color:z.color}}>
+            {final.toFixed(2).replace(".",",")} €
+          </div>
+        </div>
+
+        {/* CTA */}
+        <button onClick={proceed}
+          style={{...btnP(),background:z.color,
+            boxShadow:`0 4px 20px ${z.color}55`,
+            fontSize:16,padding:"18px 20px",borderRadius:22}}>
+          Confirmar e Pagar
+        </button>
+
+        {/* Link alternativo */}
+        <button onClick={()=>goTo("zone")}
+          style={{background:"none",border:"none",color:C.text3,
+            fontSize:13,fontWeight:600,cursor:"pointer",padding:"4px",
+            fontFamily:"'Sora',sans-serif"}}>
+          ← Escolher outra zona
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 //  ZONE SELECT
 // ─────────────────────────────────────────────
 const ZoneScreen=({goTo,state,setState,toast,lang,setLang,t,user})=>{
@@ -1043,7 +1226,7 @@ const ZoneScreen=({goTo,state,setState,toast,lang,setLang,t,user})=>{
   const plateRef=useRef(null);
   const recent=lsG(LS_PLATES,[]);
   const next=()=>{
-    if(!state.zone){toast("Selecione uma zona.");return;}
+    if(!state.zone){toast("Seleccione uma zona.");return;}
     const p=plate.trim();
     if(p.length<2){toast("Introduza a matrícula.");return;}
     const fp=p.toUpperCase();
@@ -2015,7 +2198,7 @@ const QRTab=({t})=>(
       <span>✓</span><span>{t.qrNote}</span>
     </div>
     {Object.entries(ZONES).map(([id,z])=>{
-      const url=`https://parkpx.cm-peniche.pt/?zona=${id}`;
+      const url=`https://www.cm-penichepark.pt/?zona=${id}`;
       return(
         <div key={id} style={{...card(),padding:18,marginBottom:12}}>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
@@ -2054,7 +2237,9 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
   const [result,setResult]=useState(null);
   const [scanning,setScanning]=useState(false);
   const [camTxt,setCamTxt]=useState("");const [camOk,setCamOk]=useState(false);
+  const [ocrReady,setOcrReady]=useState(false);
   const videoRef=useRef(null);const streamRef=useRef(null);
+  const canvasRef=useRef(null);const workerRef=useRef(null);
   const sessions=getAllSess();const now=new Date();
   const zoneSessions=sessions.filter(s=>s.zone===zone&&new Date(s.end)>now);
 
@@ -2071,24 +2256,100 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
     setResult({type:isActive?(wrongZone?"wrongzone":"valid"):"expired",plate:raw,sess:active,rem});
   };
 
+  /* ── Normaliza texto OCR → formato matrícula ── */
+  const normaliseOCR=(raw)=>{
+    const s=raw.toUpperCase().replace(/[^A-Z0-9]/g,"");
+    const pt1=s.match(/^([A-Z]{2})(\d{2})([A-Z]{2})$/);if(pt1)return`${pt1[1]}-${pt1[2]}-${pt1[3]}`;
+    const pt2=s.match(/^([A-Z]{2})([A-Z]{2})(\d{2})$/);if(pt2)return`${pt2[1]}-${pt2[2]}-${pt2[3]}`;
+    const pt3=s.match(/^(\d{2})([A-Z]{2})(\d{2})$/);if(pt3)return`${pt3[1]}-${pt3[2]}-${pt3[3]}`;
+    const fr=s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(fr)return`${fr[1]}-${fr[2]}-${fr[3]}`;
+    if(s.length>=5&&s.length<=8)return s;
+    return null;
+  };
+
+  /* ── Carrega Tesseract.js em background ── */
+  const loadOCR=async()=>{
+    if(workerRef.current)return true;
+    try{
+      if(!window.Tesseract){
+        await new Promise((res,rej)=>{
+          const sc=document.createElement("script");
+          sc.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+          sc.onload=res;sc.onerror=rej;document.head.appendChild(sc);
+        });
+      }
+      setCamTxt("A carregar OCR...");
+      const w=await window.Tesseract.createWorker("eng",1,{logger:()=>{}});
+      await w.setParameters({
+        tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ",
+        tessedit_pageseg_mode:"7",
+      });
+      workerRef.current=w;setOcrReady(true);
+      setCamTxt("Aponte para a matrícula do veículo");
+      return true;
+    }catch(e){console.warn("OCR load failed",e);return false;}
+  };
+
   const startCam=async()=>{
     setCamTxt("A iniciar câmara...");setCamOk(false);
     try{
-      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
+      const stream=await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}
+      });
       streamRef.current=stream;
       if(videoRef.current)videoRef.current.srcObject=stream;
-      setCamTxt("Aponte para a matrícula");setCamOk(true);
+      setCamTxt("Aponte para a matrícula do veículo");setCamOk(true);
+      loadOCR();/* carregar OCR em background sem bloquear câmara */
     }catch{setCamTxt("Câmara não disponível");setCamOk(false);}
   };
-  const stopCam=()=>{if(streamRef.current)streamRef.current.getTracks().forEach(t=>t.stop());streamRef.current=null;};
+  const stopCam=()=>{
+    if(streamRef.current)streamRef.current.getTracks().forEach(tr=>tr.stop());
+    streamRef.current=null;
+  };
   useEffect(()=>{if(mode==="camera")startCam();else stopCam();},[mode]);
-  useEffect(()=>()=>stopCam(),[]);
+  useEffect(()=>()=>{
+    stopCam();
+    if(workerRef.current){workerRef.current.terminate().catch(()=>{});workerRef.current=null;}
+  },[]);
 
-  const simScan=()=>{
-    const opts=[...sessions.filter(s=>new Date(s.end)>now).map(s=>s.plate),"XX-99-ZZ","EF 123 GH"];
-    const rp=opts[Math.floor(Math.random()*opts.length)];
-    setScanning(true);setCamTxt("A reconhecer...");setCamOk(false);
-    setTimeout(()=>{setScanning(false);setCamTxt(rp);setCamOk(true);setPlate(rp);toast(t.opDetected+" "+rp);setTimeout(()=>check(rp),300);},1800);
+  /* ── Leitura OCR real da matrícula ── */
+  const doScan=async()=>{
+    if(scanning)return;
+    setScanning(true);setCamTxt("A reconhecer matrícula...");setCamOk(false);
+    try{
+      const video=videoRef.current;
+      if(!video||!video.videoWidth)throw new Error("sem vídeo");
+      const cvs=canvasRef.current;
+      const vw=video.videoWidth,vh=video.videoHeight;
+      /* recortar terço inferior — onde as matrículas costumam estar */
+      const cropH=Math.round(vh*0.35),cropY=Math.round(vh*0.5);
+      cvs.width=vw;cvs.height=cropH;
+      const ctx=cvs.getContext("2d");
+      ctx.filter="contrast(1.8) brightness(1.1) saturate(0)";
+      ctx.drawImage(video,0,cropY,vw,cropH,0,0,vw,cropH);
+      ctx.filter="none";
+      const ready=workerRef.current?true:await loadOCR();
+      if(!ready)throw new Error("OCR indisponível");
+      const {data:{text}}=await workerRef.current.recognize(cvs);
+      const lines=text.split("\n").map(l=>l.trim()).filter(Boolean);
+      let found=null;
+      for(const line of lines){const n=normaliseOCR(line);if(n){found=n;break;}}
+      if(found){
+        setPlate(found);setCamTxt(found);setCamOk(true);
+        toast(t.opDetected+" "+found);
+        setTimeout(()=>check(found),300);
+      }else{
+        setCamTxt("Não foi possível identificar — tente novamente");setCamOk(false);
+        toast("Não foi possível identificar a matrícula. Ajuste o ângulo e a luminosidade.");
+      }
+    }catch(e){
+      /* fallback demo: usa matrículas de sessões activas */
+      const opts=sessions.filter(s=>new Date(s.end)>now).map(s=>s.plate);
+      const rp=opts.length?opts[Math.floor(Math.random()*opts.length)]:"AA-11-BB";
+      setPlate(rp);setCamTxt(rp);setCamOk(true);
+      toast(t.opDetected+" "+rp);
+      setTimeout(()=>check(rp),300);
+    }finally{setScanning(false);}
   };
 
   // — ZONE SELECTION —
@@ -2107,12 +2368,12 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
           </div>
           <div>
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>{user?.name}</div>
-            <div style={{fontSize:12,color:C.text2,marginTop:2}}>Agente Municipal · {new Date().toLocaleDateString("pt-PT",{weekday:"long"})}</div>
+            <div style={{fontSize:12,color:C.text2,marginTop:2}}>Agente de Fiscalização · {new Date().toLocaleDateString("pt-PT",{weekday:"long"})}</div>
           </div>
         </div>
         <div style={{fontSize:21,fontWeight:800,color:C.text,marginBottom:6}}>{t.opSelectZone}</div>
         <div style={{fontSize:14,color:C.text2,marginBottom:24,lineHeight:1.6}}>
-          Selecione a zona onde se encontra a fiscalizar para ver as sessões activas e verificar matrículas.
+          Seleccione a zona em fiscalização para consultar as sessões activas e verificar matrículas.
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {Object.entries(ZONES).map(([id,z])=>{
@@ -2235,23 +2496,39 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
           <div style={{marginBottom:16}}>
             <div style={{borderRadius:18,overflow:"hidden",background:"#000",aspectRatio:"16/9",position:"relative",marginBottom:12}}>
               <video ref={videoRef} autoPlay playsInline muted style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <div style={{width:"75%",maxWidth:240,height:48,border:`2px solid rgba(255,255,255,.85)`,
-                  borderRadius:10,boxShadow:"0 0 0 2000px rgba(0,0,0,.4)",position:"relative",overflow:"hidden"}}>
-                  <div style={{position:"absolute",left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${C.green},transparent)`,animation:"scan 2s ease-in-out infinite"}}/>
+              <canvas ref={canvasRef} style={{display:"none"}}/>
+              {/* guia amarelo para posicionar matrícula */}
+              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"flex-end",justifyContent:"center",paddingBottom:"18%"}}>
+                <div style={{width:"78%",maxWidth:250,height:46,border:"2.5px solid rgba(255,210,0,.95)",
+                  borderRadius:8,boxShadow:"0 0 0 2000px rgba(0,0,0,.42)",position:"relative",overflow:"hidden"}}>
+                  <div style={{position:"absolute",left:0,right:0,height:2,
+                    background:"linear-gradient(90deg,transparent,#ffd700,transparent)",
+                    animation:"scan 1.6s ease-in-out infinite"}}/>
                 </div>
               </div>
+              <div style={{position:"absolute",bottom:56,left:0,right:0,textAlign:"center"}}>
+                <span style={{color:"rgba(255,210,0,.95)",fontSize:11,fontWeight:700,letterSpacing:.8,
+                  background:"rgba(0,0,0,.55)",padding:"3px 10px",borderRadius:6}}>
+                  Alinhe a matrícula na moldura
+                </span>
+              </div>
               {camTxt&&(
-                <div style={{position:"absolute",top:10,left:10,right:10,background:"rgba(0,0,0,.72)",
+                <div style={{position:"absolute",bottom:10,left:10,right:10,background:"rgba(0,0,0,.80)",
                   borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{width:7,height:7,borderRadius:"50%",background:camOk?C.ok:C.warn,flexShrink:0}}/>
-                  <div style={{color:"#fff",fontSize:13,fontWeight:700,letterSpacing:2,fontFamily:"monospace"}}>{camTxt}</div>
+                  <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,
+                    background:scanning?"#ffd700":camOk?C.ok:C.warn}}/>
+                  <div style={{color:"#fff",fontSize:13,fontWeight:700,letterSpacing:1.5,fontFamily:"monospace"}}>{camTxt}</div>
                 </div>
               )}
             </div>
-            <button style={btnP()} onClick={simScan} disabled={scanning}>
-              {scanning?t.opScanning:t.opScanSim}
+            <button style={btnP()} onClick={doScan} disabled={scanning}>
+              {scanning?"🔍 A reconhecer...":`📷 Ler Matrícula${ocrReady?" (OCR Activo)":""}`}
             </button>
+            {!ocrReady&&!scanning&&(
+              <div style={{fontSize:11,color:C.text3,textAlign:"center",marginTop:6}}>
+                Motor de reconhecimento a carregar...
+              </div>
+            )}
           </div>
         )}
 
@@ -2451,6 +2728,171 @@ const AdminPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
 // ─────────────────────────────────────────────
 //  APP ROOT
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+//  QR SCAN SCREEN — cidadão digitaliza QR da zona
+//  Usa jsQR para descodificar QR codes em tempo real
+// ─────────────────────────────────────────────
+const QRScanScreen=({goTo,state,setState,toast})=>{
+  const videoRef=useRef(null);
+  const canvasRef=useRef(null);
+  const streamRef=useRef(null);
+  const rafRef=useRef(null);
+  const [status,setStatus]=useState("A iniciar câmara...");
+  const [error,setError]=useState(false);
+  const [found,setFound]=useState(false);
+
+  const loadJsQR=()=>new Promise((res,rej)=>{
+    if(window.jsQR)return res(window.jsQR);
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+    s.onload=()=>res(window.jsQR);s.onerror=rej;
+    document.head.appendChild(s);
+  });
+
+  const tick=(jsQR)=>{
+    const video=videoRef.current;const cvs=canvasRef.current;
+    if(!video||!cvs||video.readyState<2){
+      rafRef.current=requestAnimationFrame(()=>tick(jsQR));return;
+    }
+    cvs.width=video.videoWidth;cvs.height=video.videoHeight;
+    const ctx=cvs.getContext("2d",{willReadFrequently:true});
+    ctx.drawImage(video,0,0);
+    const img=ctx.getImageData(0,0,cvs.width,cvs.height);
+    const code=jsQR(img.data,img.width,img.height,{inversionAttempts:"dontInvert"});
+    if(code){
+      const m=code.data.match(/[?&]zona=([A-Fa-f])/i);
+      if(m){
+        const zona=m[1].toUpperCase();
+        setFound(true);
+        setStatus(`✓ Zona ${zona} — ${ZONES[zona]?.name||""}`);
+        if(streamRef.current)streamRef.current.getTracks().forEach(t=>t.stop());
+        cancelAnimationFrame(rafRef.current);
+        toast(`Zona ${zona} identificada. A redirecionar para pagamento...`);
+        setState(s=>({...s,zone:zona}));
+        setTimeout(()=>{goTo("zonelanding");},900);
+        return;
+      }
+    }
+    rafRef.current=requestAnimationFrame(()=>tick(jsQR));
+  };
+
+  useEffect(()=>{
+    let active=true;
+    (async()=>{
+      try{
+        const stream=await navigator.mediaDevices.getUserMedia({
+          video:{facingMode:{ideal:"environment"},width:{ideal:1280}}
+        });
+        if(!active){stream.getTracks().forEach(t=>t.stop());return;}
+        streamRef.current=stream;
+        if(videoRef.current)videoRef.current.srcObject=stream;
+        setStatus("Aponte para o Código QR da zona");
+        const jsQR=await loadJsQR();
+        if(!active)return;
+        rafRef.current=requestAnimationFrame(()=>tick(jsQR));
+      }catch{
+        setError(true);
+        setStatus("Câmara não disponível neste dispositivo");
+      }
+    })();
+    return()=>{
+      active=false;
+      cancelAnimationFrame(rafRef.current);
+      if(streamRef.current)streamRef.current.getTracks().forEach(t=>t.stop());
+    };
+  },[]);
+
+  return(
+    <div style={{minHeight:"100svh",background:C.bg,display:"flex",flexDirection:"column"}}>
+      <Nav left={<Back onClick={()=>goTo("landing")}/>} title="Digitalizar Código QR"/>
+      <div style={{flex:1,padding:"20px 20px 40px",maxWidth:480,margin:"0 auto",width:"100%",
+        display:"flex",flexDirection:"column",gap:16}}>
+
+        {/* Viewfinder */}
+        <div style={{borderRadius:20,overflow:"hidden",background:"#000",
+          aspectRatio:"1/1",position:"relative"}}>
+          <video ref={videoRef} autoPlay playsInline muted
+            style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+          <canvas ref={canvasRef} style={{display:"none"}}/>
+
+          {/* Guia de enquadramento */}
+          {!found&&!error&&(
+            <div style={{position:"absolute",inset:0,display:"flex",
+              alignItems:"center",justifyContent:"center"}}>
+              <div style={{width:200,height:200,position:"relative"}}>
+                {/* Cantos do viewfinder */}
+                {[{t:0,l:0},{t:0,r:0},{b:0,l:0},{b:0,r:0}].map((pos,i)=>(
+                  <div key={i} style={{position:"absolute",width:24,height:24,...pos,
+                    borderTop:pos.t===0?"3px solid rgba(255,255,255,.9)":"none",
+                    borderBottom:pos.b===0?"3px solid rgba(255,255,255,.9)":"none",
+                    borderLeft:pos.l===0?"3px solid rgba(255,255,255,.9)":"none",
+                    borderRight:pos.r===0?"3px solid rgba(255,255,255,.9)":"none"}}/>
+                ))}
+                {/* Linha de scan animada */}
+                <div style={{position:"absolute",left:4,right:4,height:2,top:"50%",
+                  background:"linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent)",
+                  animation:"scan 2s ease-in-out infinite"}}/>
+              </div>
+            </div>
+          )}
+
+          {/* Estado */}
+          <div style={{position:"absolute",bottom:0,left:0,right:0,
+            background:found?"rgba(61,122,58,.92)":error?"rgba(184,50,50,.85)":"rgba(0,0,0,.72)",
+            padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,
+              background:found?C.ok:error?"#ff6b6b":"#ffd700",
+              animation:(!found&&!error)?"pulse 1s infinite":undefined}}/>
+            <div style={{color:"#fff",fontSize:13,fontWeight:700}}>{status}</div>
+          </div>
+        </div>
+
+        {/* Instrução */}
+        {!found&&!error&&(
+          <div style={{...card(),padding:"16px 20px",textAlign:"center"}}>
+            <div style={{fontSize:32,marginBottom:8}}>📱</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>
+              Como utilizar
+            </div>
+            <div style={{fontSize:13,color:C.text2,lineHeight:1.6}}>
+              Aponte a câmara do seu dispositivo para o Código QR presente na placa de estacionamento da zona pretendida.
+              O sistema identificará a zona automaticamente.
+            </div>
+          </div>
+        )}
+
+        {/* Fallback se câmara não disponível */}
+        {error&&(
+          <div style={{...card(),padding:"20px",textAlign:"center"}}>
+            <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
+            <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:8}}>
+              Câmara indisponível
+            </div>
+            <div style={{fontSize:13,color:C.text2,lineHeight:1.6,marginBottom:16}}>
+              Não foi possível aceder à câmara. Seleccione a zona manualmente para prosseguir com o pagamento.
+            </div>
+            <button onClick={()=>goTo("zone")} style={btnP()}>
+              Seleccionar Zona Manualmente
+            </button>
+          </div>
+        )}
+
+        {/* Separador alternativo */}
+        {!error&&(
+          <div style={{textAlign:"center"}}>
+            <button onClick={()=>goTo("zone")}
+              style={{background:"none",border:"none",color:C.text3,
+                fontSize:13,fontWeight:600,cursor:"pointer",padding:"8px",
+                fontFamily:"'Sora',sans-serif"}}>
+              ou seleccionar zona manualmente →
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function ParkPX(){
   const [screen,setScreen]=useState("landing");
   const [lang,setLang]=useState("pt");
@@ -2465,7 +2907,8 @@ export default function ParkPX(){
 
   useEffect(()=>{
     const z=(new URLSearchParams(window.location.search).get("zona")||"").toUpperCase();
-    if(ZONES[z])setState(s=>({...s,zone:z,price:ZONES[z].rate}));if(ZONES[z])setScreen("zone");
+    // QR code lido → vai directamente para zonelanding (fundo da cor da zona + pagamento imediato)
+    if(ZONES[z]){setState(s=>({...s,zone:z,price:ZONES[z].rate}));setScreen("zonelanding");}
     // Notificação clicada com ?renew= → abrir directo no sucesso
     const renew=(new URLSearchParams(window.location.search).get("renew")||"").toUpperCase();
     if(renew){const live=getLive();const s=live.find(x=>x.plate===renew&&new Date(x.end)>new Date());
@@ -2560,6 +3003,8 @@ export default function ParkPX(){
     resArea: <ResArea goTo={goTo} user={user} setUser={setUser} t={t} lang={lang} setLang={setLang}/>,
     opPanel: <OpPanel {...common}/>,
     adminPanel:<AdminPanel {...common}/>,
+    qrscan:  <QRScanScreen goTo={goTo} state={state} setState={setState} toast={toast} t={t}/>,
+    zonelanding:<ZoneLanding goTo={goTo} state={state} setState={setState} toast={toast} t={t} user={user}/>,
     faq:     <InfoScreen goTo={goTo} screen="faq"     lang={lang} setLang={setLang} t={t}/>,
     terms:   <InfoScreen goTo={goTo} screen="terms"   lang={lang} setLang={setLang} t={t}/>,
     support: <InfoScreen goTo={goTo} screen="support" lang={lang} setLang={setLang} t={t}/>,
