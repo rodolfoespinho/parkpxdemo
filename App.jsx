@@ -608,11 +608,10 @@ const InfoScreen=({goTo,screen,lang,setLang,t})=>{
   );
   // Converte emails e telefones em links clicáveis
   const linkify=(text)=>{
-    const parts=text.split(/([\w.+-]+@[\w-]+\.[\w.]+|2\d{8}|1\d{2})/g);
+    const parts=text.split(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g);
     return parts.map((p,i)=>{
-      if(/@/.test(p))return<a key={i} href={`mailto:${p}`} style={{color:C.green,fontWeight:700,textDecoration:"underline"}}>{p}</a>;
-      if(/^\d{9}$/.test(p))return<a key={i} href={`tel:+351${p}`} style={{color:C.green}}>{p}</a>;
-      if(/^\d{3}$/.test(p)&&p==="112")return<a key={i} href="tel:112" style={{color:"#c0392b",fontWeight:700}}>{p}</a>;
+      if(p.includes("@")&&/^[^@\s]+@[^@\s]+$/.test(p))
+        return<a key={i} href={"mailto:"+p} style={{color:C.green,fontWeight:700,textDecoration:"underline"}}>{p}</a>;
       return p;
     });
   };
