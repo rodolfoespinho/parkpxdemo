@@ -2254,8 +2254,7 @@ const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,
               "Válido até: "+new Date(state.endTime||Date.now()).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}),
               "Total: "+((state.total||state.price&&state.mins?(state.price*(state.mins/60))*(1-(user?.discount||0)/100):0)).toFixed(2).replace(".",",")+"€",
               "Ref: "+(state.ref||"—"),
-            ].join("
-");
+            ].join("\n");
             if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>alert("✓ Copiado para o clipboard"));}
             else{const a=document.createElement("a");a.href="data:text/plain,"+encodeURIComponent(txt);a.download="parque-peniche.txt";a.click();}
           }}>{t.save}</button>
