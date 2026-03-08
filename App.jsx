@@ -1184,7 +1184,9 @@ const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
   useEffect(()=>{if(!z)goTo("landing");},[z]);
   if(!z)return null;
 
-  const [plate,setPlate]=useState(state.plate||"");
+  // Pré-preencher com matrícula do perfil do utilizador (se logado e não houver já uma no state)
+  const defaultPlate=state.plate||(user?.plate||lsG("pkx_plates_"+(user?.email||""),[]).filter(Boolean)[0])||"";
+  const [plate,setPlate]=useState(defaultPlate);
   const plateRef=useRef(null);
   const recent=lsG(LS_PLATES,[]);
 
@@ -1335,7 +1337,9 @@ const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
 //  ZONE SELECT
 // ─────────────────────────────────────────────
 const ZoneScreen=({goTo,state,setState,toast,lang,setLang,t,user})=>{
-  const [plate,setPlate]=useState(state.plate||"");
+  // Pré-preencher com matrícula do perfil do utilizador (se logado e não houver já uma no state)
+  const defaultPlate=state.plate||(user?.plate||lsG("pkx_plates_"+(user?.email||""),[]).filter(Boolean)[0])||"";
+  const [plate,setPlate]=useState(defaultPlate);
   const plateRef=useRef(null);
   const recent=lsG(LS_PLATES,[]);
   const next=()=>{
@@ -2187,7 +2191,14 @@ const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,
           Zona {state.zone} — {z.name} · {ZR(state.zone)}
         </div>}
         <PlateBadge plate={state.plate||"—"} size="lg"/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:12,marginBottom:14}}>
+        {/* Total pago — destaque */}
+        <div style={{background:C.greenL,border:`1.5px solid ${C.okBd}`,borderRadius:12,padding:"10px 14px",marginTop:12,marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:13,fontWeight:700,color:C.text2}}>Total pago</span>
+          <span style={{fontSize:22,fontWeight:900,color:C.green,letterSpacing:"-0.5px"}}>
+            {((state.total||state.price&&state.mins?(state.price*(state.mins/60))*(1-(user?.discount||0)/100):0)).toFixed(2).replace(".",",")}€
+          </span>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:4,marginBottom:14}}>
           {[[t.payment,PM[state.pay]||"—"],[t.duration,(()=>{const h=Math.floor((state.mins||0)/60),m=(state.mins||0)%60;return h>0?h+"h"+(m>0?" "+m+"m":""):m+"m";})()],[t.start,fmtTime(state.startTime||new Date())],[t.ref,state.ref||"—"]].map(([l,v])=>(
             <div key={l}>
               <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:.5,color:C.text3,fontWeight:700,marginBottom:3}}>{l}</div>
@@ -2232,8 +2243,28 @@ const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,
 
       {/* Bottom actions */}
       <div style={{padding:"0 18px 8px",display:"flex",gap:10}}>
-        <button style={{...btnO({fontSize:13,padding:"13px",borderRadius:16,flex:1})}}>{t.save}</button>
-        <button style={{...btnO({fontSize:13,padding:"13px",borderRadius:16,flex:1})}}>{t.share}</button>
+        <button style={{...btnO({fontSize:13,padding:"13px",borderRadius:16,flex:1})}}
+          onClick={()=>{
+            // Guardar como texto no clipboard / download
+            const txt=[
+              "🅿️ ParkPX — Peniche",
+              "Matrícula: "+(state.plate||"—"),
+              "Zona: "+(state.zone||"—")+" — "+(ZONES[state.zone]?.name||""),
+              "Duração: "+((()=>{const h=Math.floor((state.mins||0)/60),m=(state.mins||0)%60;return h>0?h+"h"+(m>0?" "+m+"m":""):m+"m";})()),
+              "Válido até: "+new Date(state.endTime||Date.now()).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}),
+              "Total: "+((state.total||state.price&&state.mins?(state.price*(state.mins/60))*(1-(user?.discount||0)/100):0)).toFixed(2).replace(".",",")+"€",
+              "Ref: "+(state.ref||"—"),
+            ].join("
+");
+            if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>alert("✓ Copiado para o clipboard"));}
+            else{const a=document.createElement("a");a.href="data:text/plain,"+encodeURIComponent(txt);a.download="parque-peniche.txt";a.click();}
+          }}>{t.save}</button>
+        <button style={{...btnO({fontSize:13,padding:"13px",borderRadius:16,flex:1})}}
+          onClick={()=>{
+            const txt="🅿️ ParkPX Peniche — "+(state.plate||"")+" · Zona "+(state.zone||"")+" · até "+new Date(state.endTime||Date.now()).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"})+" · Ref "+(state.ref||"");
+            if(navigator.share){navigator.share({title:"ParkPX Peniche",text:txt,url:"https://www.cm-penichepark.pt"}).catch(()=>{});}
+            else if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>alert("✓ Copiado para o clipboard"));}
+          }}>{t.share}</button>
       </div>
       <div style={{padding:"0 18px 28px"}}>
         <button style={btnO({borderRadius:20})} onClick={()=>goTo("landing")}>{t.back}</button>
@@ -2712,6 +2743,9 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
   const videoRef=useRef(null);const streamRef=useRef(null);
   const canvasRef=useRef(null);
   const rafRef=useRef(null);const lastFoundRef=useRef(null);const busyRef=useRef(false);
+  const workerRef=useRef(null);const workerRef2=useRef(null);
+  const pendingRef=useRef({plate:null,count:0});
+  const [ocrReady,setOcrReady]=useState(false);
   const sessions=getAllSess();const now=new Date();
   const zoneSessions=sessions.filter(s=>s.zone===zone&&new Date(s.end)>now);
 
@@ -3528,9 +3562,40 @@ export default function ParkPX(){
   const [lang,setLang]=useState("pt");
   const t=T[lang];
   const [toastMsg,setToastMsg]=useState("");
-  const [user,setUser]=useState(null);
+  // Restaurar sessão Google ao abrir a app
+  const [user,setUser]=useState(()=>{
+    try{
+      const saved=localStorage.getItem("pkx_session_v2");
+      if(saved){const u=JSON.parse(saved);if(u&&u.email)return u;}
+    }catch{}
+    return null;
+  });
   const [notifSent,setNotifSent]=useState(false);
-  const [state,setState]=useState({zone:null,price:0,plate:"",mins:60,total:0,pay:null,ref:null,startTime:null,endTime:null,cdTotal:0});
+  // Inicializar state.plate com a matrícula do perfil se logado
+  const [state,setState]=useState(()=>{
+    // A matrícula do user só fica disponível após o user ser restaurado,
+    // mas o useEffect abaixo actualiza o state quando user mudar
+    return {zone:null,price:0,plate:"",mins:60,total:0,pay:null,ref:null,startTime:null,endTime:null,cdTotal:0};
+  });
+
+  // ── Persistir sessão + preencher matrícula do perfil ──────────
+  useEffect(()=>{
+    try{
+      if(user&&user.email)localStorage.setItem("pkx_session_v2",JSON.stringify(user));
+      else localStorage.removeItem("pkx_session_v2");
+    }catch{}
+    // Preencher matrícula principal do perfil no state global
+    if(user){
+      const savedPlates=lsG("pkx_plates_"+(user.email||""),[]);
+      const mainPlate=user.plate||savedPlates[0]||"";
+      if(mainPlate)setState(s=>s.plate?s:{...s,plate:mainPlate});
+      // Redirigir para o painel correcto se logado e em landing
+      if(screen==="landing"){
+        if(user.role==="operator")setScreen("opPanel");
+        else if(user.role==="admin")setScreen("adminPanel");
+      }
+    }
+  },[user]);
 
   // ── Favicon & meta tags ──────────────────────
   useEffect(()=>{
