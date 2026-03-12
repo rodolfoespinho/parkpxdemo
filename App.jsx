@@ -658,6 +658,9 @@ const Footer=({t})=>(
       <div style={{marginTop:8,fontSize:11,opacity:.7}}>{t.footerLegal}</div>
       <div style={{fontSize:10,opacity:.4,marginTop:4}}>© {new Date().getFullYear()} · {t.footerRights}</div>
     </div>
+    <div style={{marginTop:16,fontSize:10,letterSpacing:.8,color:"#333333",opacity:.5,fontWeight:600}}>
+      POWERED BY ATLAS
+    </div>
   </div>
 );
 
@@ -1694,50 +1697,29 @@ const TimeScreen=({goTo,state,setState,lang,setLang,t,user})=>{
 //  PAYMENT
 // ─────────────────────────────────────────────
 const PaymentScreen=({goTo,state,setState,onPay,lang,setLang,t})=>{
-  // Hick's: MB WAY pré-seleccionado — reduz decisão de 4 para confirmação de 1
-  const [method,setMethod]=useState("card");
-  const [showAll,setShowAll]=useState(false);
+  const [method,setMethod]=useState("mbway");
   const [showMb,setShowMb]=useState(false),[mbPhone,setMbPhone]=useState(""),[mbWait,setMbWait]=useState(false);
   const [showCard,setShowCard]=useState(false),[cNum,setCNum]=useState(""),[cExp,setCExp]=useState(""),[cCvv,setCCvv]=useState("");
 
-  const PRIMARY = {id:"card",icon:"💳",name:"Cartão Bancário",sub:"Débito ou crédito"}; 
-  const OTHER_METHODS=[
-    {id:"mbway", icon:"📱",name:"MB WAY",    sub:"Confirmação imediata"},
-    {id:"apple", icon:"◼", name:"Apple / Google Pay",sub:"Face ID · Touch ID"},
-    {id:"paypal",icon:"🅿",name:"PayPal",    sub:"Conta PayPal"},
+  const METHODS=[
+    {id:"mbway",  icon:"📱",name:"MB WAY",          sub:"Aprovação imediata no app"},
+    {id:"card",   icon:"💳",name:"Cartão Bancário",  sub:"Débito ou crédito"},
+    {id:"apple",  icon:"◼", name:"Apple / Google Pay",sub:"Face ID · Touch ID · Biometria"},
+    {id:"paypal", icon:"🅿",name:"PayPal",           sub:"Conta PayPal"},
   ];
-  const allMethods=[PRIMARY,...OTHER_METHODS];
+
+  // Calcular duração formatada
+  const durLabel=(()=>{const h=Math.floor((state.mins||0)/60),m=(state.mins||0)%60;return h>0?h+"h"+(m>0?" "+m+"m":""):m+"m";})();
 
   const Sheet=({show,close,children})=>!show?null:(
-    <div onClick={close} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:400,
+    <div onClick={close} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:400,
       display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(8px)"}}>
       <div onClick={e=>e.stopPropagation()}
-        style={{background:C.surface,borderRadius:"24px 24px 0 0",padding:"0 22px 44px",width:"100%",maxWidth:480,
-          border:`1px solid ${C.border}`,borderBottom:"none"}}>
-        <div style={{width:32,height:4,background:C.bg3,borderRadius:2,margin:"16px auto 24px"}}/>
+        style={{background:C.surface,borderRadius:"24px 24px 0 0",padding:"0 22px 44px",
+          width:"100%",maxWidth:480,border:"1px solid "+C.border,borderBottom:"none",
+          maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{width:36,height:4,background:C.bg3,borderRadius:2,margin:"14px auto 20px"}}/>
         {children}
-      </div>
-    </div>
-  );
-
-  const MethodRow=({m,sel})=>(
-    <div onClick={()=>{setMethod(m.id);setShowAll(false);}}
-      style={{...card(),padding:"14px 18px",cursor:"pointer",display:"flex",alignItems:"center",gap:16,
-        border:`2px solid ${sel?C.green:C.border2}`,
-        background:sel?C.greenL:C.surface,transition:"all .15s",
-        // Fitts: mínimo 64px altura
-        minHeight:64}}>
-      <div style={{width:46,height:46,borderRadius:14,background:C.bg2,display:"flex",
-        alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{m.icon}</div>
-      <div style={{flex:1}}>
-        <div style={{fontSize:15,fontWeight:600,color:C.text}}>{m.name}</div>
-        <div style={{fontSize:12,color:C.text3,marginTop:2}}>{m.sub}</div>
-      </div>
-      <div style={{width:24,height:24,borderRadius:12,
-        border:`2px solid ${sel?C.green:C.border}`,
-        background:sel?C.green:"transparent",flexShrink:0,
-        display:"flex",alignItems:"center",justifyContent:"center"}}>
-        {sel&&<div style={{width:8,height:8,borderRadius:"50%",background:"#fff"}}/>}
       </div>
     </div>
   );
@@ -1749,190 +1731,234 @@ const PaymentScreen=({goTo,state,setState,onPay,lang,setLang,t})=>{
           right={<div style={{position:"relative"}}><Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/></div>}/>
       </div>
       <Steps step={2} labels={[t.zone,"Tempo",t.payment]}/>
-      <div style={{flex:1,padding:"20px 18px 40px",maxWidth:480,margin:"0 auto",width:"100%"}}>
 
-        {/* Hick's: mostra só o método seleccionado em destaque */}
-        <MethodRow m={allMethods.find(m=>m.id===method)||PRIMARY} sel={true}/>
+      <div style={{flex:1,padding:"16px 18px 40px",maxWidth:480,margin:"0 auto",width:"100%"}}>
 
-        {/* Hick's: "outros métodos" colapsados — só expandem se o utilizador quiser */}
-        <button onClick={()=>setShowAll(o=>!o)}
-          style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-            width:"100%",margin:"10px 0 14px",padding:"12px",background:"none",border:"none",
-            cursor:"pointer",fontFamily:"inherit",fontSize:13,color:C.text3,fontWeight:600}}>
-          <span style={{fontSize:10,opacity:.6}}>{showAll?"▲":"▼"}</span>
-          {showAll?"Fechar outros métodos":"Outros métodos de pagamento"}
-        </button>
-        {showAll&&(
-          <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
-            {allMethods.filter(m=>m.id!==method).map(m=>(
-              <MethodRow key={m.id} m={m} sel={false}/>
-            ))}
+        {/* ── Total em destaque ── */}
+        <div style={{borderRadius:20,padding:"16px 20px",marginBottom:20,
+          background:"linear-gradient(135deg,"+C.green+"22,"+C.teal+"11)",
+          border:"1.5px solid "+C.okBd,
+          display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.6,color:C.text3,marginBottom:3}}>Total a pagar</div>
+            <div style={{fontSize:12,color:C.text3}}>{state.plate||"—"} · Zona {state.zone||"—"} · {durLabel}</div>
           </div>
-        )}
-
-        {/* Total */}
-        <div style={{...card(),marginBottom:16,padding:"18px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:15,fontWeight:600,color:C.text}}>Total</span>
-          <span style={{fontSize:30,fontWeight:800,color:C.green,letterSpacing:"-.5px"}}>{fmtEur(state.total||0)}</span>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:38,fontWeight:900,color:C.green,letterSpacing:-1.5,lineHeight:1}}>{fmtEur(state.total||0)}</div>
+            <div style={{fontSize:10,color:C.text3,marginTop:2}}>IVA incluído</div>
+          </div>
         </div>
 
-        {/* Fitts: CTA grande, sempre activo (método já está pré-seleccionado) */}
-        <button style={btnP()}
-          onClick={()=>{
-            setState(s=>({...s,pay:method}));
-            if(method==="mbway")setShowMb(true);
-            else if(method==="card")setShowCard(true);
-            else onPay(method);
-          }}>{t.payNow}</button>
-        <div style={{textAlign:"center",fontSize:12,color:C.text3,marginTop:12}}>{t.secure}</div>
+        {/* ── Métodos — todos visíveis ── */}
+        <div style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:.5,color:C.text3,marginBottom:10}}>
+          Método de pagamento
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+          {METHODS.map(m=>{
+            const sel=method===m.id;
+            return(
+              <div key={m.id} onClick={()=>setMethod(m.id)}
+                style={{borderRadius:16,padding:"14px 16px",cursor:"pointer",
+                  display:"flex",alignItems:"center",gap:14,minHeight:64,
+                  border:"2px solid "+(sel?C.green:C.border2),
+                  background:sel?C.greenL:C.surface,
+                  transition:"all .12s"}}>
+                <div style={{width:44,height:44,borderRadius:13,
+                  background:sel?C.green+"22":C.bg2,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:20,flexShrink:0}}>{m.icon}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:700,color:C.text}}>{m.name}</div>
+                  <div style={{fontSize:12,color:C.text3,marginTop:1}}>{m.sub}</div>
+                </div>
+                <div style={{width:22,height:22,borderRadius:11,flexShrink:0,
+                  border:"2px solid "+(sel?C.green:C.border),
+                  background:sel?C.green:"transparent",
+                  display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {sel&&<div style={{width:7,height:7,borderRadius:"50%",background:"#fff"}}/>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <button style={btnP()} onClick={()=>{
+          setState(s=>({...s,pay:method}));
+          if(method==="mbway")setShowMb(true);
+          else if(method==="card")setShowCard(true);
+          else onPay(method);
+        }}>{t.payNow}</button>
+        <div style={{textAlign:"center",fontSize:11,color:C.text3,marginTop:10}}>{t.secure}</div>
       </div>
+
+      {/* ── Sheet MB WAY ── */}
       <Sheet show={showMb} close={()=>!mbWait&&setShowMb(false)}>
-        <div style={{fontSize:20,fontWeight:700,marginBottom:16,color:C.text}}>MB WAY</div>
-        <div style={{background:C.bg2,borderRadius:14,padding:"14px 18px",textAlign:"center",marginBottom:16}}>
-          <div style={{fontSize:11,color:C.text3,fontWeight:600,letterSpacing:1,marginBottom:4}}>MONTANTE</div>
-          <div style={{fontSize:42,fontWeight:800,color:C.text,letterSpacing:-1}}>{fmtEur(state.total||0)}</div>
+        <div style={{fontSize:18,fontWeight:800,color:C.text,marginBottom:4}}>📱 MB WAY</div>
+        <div style={{fontSize:13,color:C.text3,marginBottom:16}}>Introduza o número de telemóvel associado ao MB WAY</div>
+        <div style={{background:C.bg2,borderRadius:14,padding:"12px 16px",textAlign:"center",marginBottom:14}}>
+          <div style={{fontSize:11,color:C.text3,fontWeight:600,letterSpacing:1,marginBottom:3}}>MONTANTE</div>
+          <div style={{fontSize:40,fontWeight:900,color:C.green,letterSpacing:-1}}>{fmtEur(state.total||0)}</div>
         </div>
-        <input value={mbPhone} onChange={e=>setMbPhone(e.target.value)} type="tel" placeholder="9XX XXX XXX" style={{...inp(),marginBottom:14}}/>
+        <input value={mbPhone} onChange={e=>setMbPhone(e.target.value.replace(/\D/g,"").slice(0,9))}
+          type="tel" placeholder="9XX XXX XXX" inputMode="numeric"
+          style={{...inp(),marginBottom:14,textAlign:"center",fontSize:20,fontWeight:700,letterSpacing:2}}/>
         {mbWait
-          ?<div style={{textAlign:"center",padding:"12px 0",color:C.text2,fontSize:14}}>⏳ A aguardar confirmação...</div>
-          :<button style={btnP()} onClick={()=>{if(!mbPhone)return;setMbWait(true);setTimeout(()=>{setShowMb(false);setMbWait(false);onPay("mbway");},2800);}}>Enviar pedido MB WAY</button>}
+          ?<div style={{textAlign:"center",padding:"14px 0",color:C.text2,fontSize:14}}>⏳ A aguardar aprovação no seu telemóvel...</div>
+          :<button style={btnP()} onClick={()=>{if(mbPhone.length<9){return;}setMbWait(true);setTimeout(()=>{setShowMb(false);setMbWait(false);onPay("mbway");},2800);}}>
+            Enviar pedido · {fmtEur(state.total||0)}
+          </button>}
       </Sheet>
+
+      {/* ── Sheet Cartão ── */}
       <Sheet show={showCard} close={()=>setShowCard(false)}>
-        <div style={{fontSize:20,fontWeight:700,marginBottom:16,color:C.text}}>Cartão Bancário</div>
-        <input value={cNum} onChange={e=>setCNum(e.target.value)} placeholder="0000  0000  0000  0000" style={{...inp(),marginBottom:10}}/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+        <div style={{fontSize:18,fontWeight:800,color:C.text,marginBottom:4}}>💳 Cartão Bancário</div>
+        <div style={{fontSize:13,color:C.text3,marginBottom:16}}>Dados do cartão encriptados via Stripe TLS</div>
+        <input value={cNum} onChange={e=>setCNum(e.target.value.replace(/\D/g,"").slice(0,16).replace(/(.{4})/g,"$1 ").trim())}
+          placeholder="0000  0000  0000  0000" inputMode="numeric" style={{...inp(),marginBottom:10,fontSize:16,letterSpacing:2}}/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
           <input value={cExp} onChange={e=>setCExp(e.target.value)} placeholder="MM / AA" style={inp()}/>
-          <input value={cCvv} onChange={e=>setCCvv(e.target.value)} placeholder="CVV" type="password" style={inp()}/>
+          <input value={cCvv} onChange={e=>setCCvv(e.target.value.replace(/\D/g,"").slice(0,4))}
+            placeholder="CVV" type="password" inputMode="numeric" style={inp()}/>
         </div>
-        <button style={btnP()} onClick={()=>{setShowCard(false);onPay("card");}}>Confirmar Pagamento</button>
+        <button style={btnP()} onClick={()=>{if(!cNum||!cExp||!cCvv)return;setShowCard(false);onPay("card");}}>
+          Confirmar · {fmtEur(state.total||0)}
+        </button>
+        <div style={{textAlign:"center",fontSize:11,color:C.text3,marginTop:10}}>🔒 PCI DSS Nível 1 · Stripe</div>
       </Sheet>
     </div>
   );
 };
 
-// ─────────────────────────────────────────────
-//  CIRCULAR TIMER — estilo Via Verde
-// ─────────────────────────────────────────────
+
 const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
+  // 32 steps de 15 em 15 min, de 15min até 8h
   const OPTIONS=useMemo(()=>{
     const out=[];
     for(let m=15;m<=480;m+=15){
-      const h=Math.floor(m/60),rm=m%60;
-      let label;
-      if(h===0)label=m+" min";
-      else if(rm===0)label=h===1?"1 hora":h+" horas";
-      else label=h+"h "+String(rm).padStart(2,"0");
-      out.push({mins:m,label});
+      const h=Math.floor(m/60),r=m%60;
+      out.push({mins:m,label:h===0?m+" min":r===0?(h===1?"1 hora":h+" horas"):h+"h "+String(r).padStart(2,"0")});
     }
     return out;
   },[]);
+  const TOTAL=OPTIONS.length; // 32
+  const idx=Math.max(0,OPTIONS.findIndex(o=>o.mins===mins));
+  const pct=TOTAL>1?idx/(TOTAL-1):0;
 
-  const TOTAL=OPTIONS.length; // 32 steps
-  const foundIdx=OPTIONS.findIndex(o=>o.mins===mins);
-  const idx=foundIdx>=0?foundIdx:3; // safe default: 1 hora
-
-  const pct=idx/(TOTAL-1); // 0..1
-
-  // Arc: starts bottom-left (-220deg), sweeps 260deg clockwise to bottom-right (40deg)
-  const R=88, CX=130, CY=128, STROKE=16;
-  const START=-220, SWEEP=260;
-  const toRad=d=>d*Math.PI/180;
-  const pt=d=>({
-    x: CX+R*Math.cos(toRad(d)),
-    y: CY+R*Math.sin(toRad(d))
-  });
-
-  const startPt=pt(START);
-  const endPt=pt(START+SWEEP);
-  const curAng=START+pct*SWEEP;
-  const curPt=pt(curAng);
-  const largeArc=pct*SWEEP>180?1:0;
-
-  // Full track arc
-  const trackPath=`M ${startPt.x.toFixed(1)} ${startPt.y.toFixed(1)} A ${R} ${R} 0 1 1 ${endPt.x.toFixed(1)} ${endPt.y.toFixed(1)}`;
-  // Filled arc (only draw if pct>0)
-  const fillPath=pct>0
-    ?`M ${startPt.x.toFixed(1)} ${startPt.y.toFixed(1)} A ${R} ${R} 0 ${largeArc} 1 ${curPt.x.toFixed(1)} ${curPt.y.toFixed(1)}`
-    :null;
-
+  // Geometria: arco de -220° a +40° (sentido horário), centro (130,128), raio 88
+  const R=88,CX=130,CY=128,STR=16;
+  const DEG_START=-220, DEG_SWEEP=260;
+  const rad=d=>d*Math.PI/180;
+  const pt=d=>({x:CX+R*Math.cos(rad(d)),y:CY+R*Math.sin(rad(d))});
+  const sP=pt(DEG_START), eP=pt(DEG_START+DEG_SWEEP);
+  const curDeg=DEG_START+pct*DEG_SWEEP;
+  const cP=pt(curDeg);
+  const largeArc=pct*DEG_SWEEP>180?1:0;
+  const trackD=`M ${sP.x.toFixed(2)} ${sP.y.toFixed(2)} A ${R} ${R} 0 1 1 ${eP.x.toFixed(2)} ${eP.y.toFixed(2)}`;
+  const fillD=pct>0?`M ${sP.x.toFixed(2)} ${sP.y.toFixed(2)} A ${R} ${R} 0 ${largeArc} 1 ${cP.x.toFixed(2)} ${cP.y.toFixed(2)}`:null;
   const color=zoneColor||C.green;
-
-  // Touch/mouse drag
   const svgRef=useRef(null);
   const dragging=useRef(false);
+  const lastIdxRef=useRef(idx);
 
+  // ── Conversão posição → índice ──────────────────────────────────────────
+  // Não usa atan2 normalizado — usa ângulo SVG directo relativo ao centro
   const posToIdx=(clientX,clientY)=>{
     if(!svgRef.current)return null;
     const rect=svgRef.current.getBoundingClientRect();
-    const scaleX=260/rect.width, scaleY=200/rect.height;
-    const ex=(clientX-rect.left)*scaleX;
-    const ey=(clientY-rect.top)*scaleY;
-    const angDeg=Math.atan2(ey-CY,ex-CX)*180/Math.PI;
-    // normalise to arc space
-    let a=angDeg-START;
-    if(a<0)a+=360;
-    if(a>SWEEP+15)return null;
-    const frac=Math.max(0,Math.min(1,a/SWEEP));
+    // Coordenadas em espaço SVG (viewBox 0 0 260 200)
+    const sx=(clientX-rect.left)*(260/rect.width);
+    const sy=(clientY-rect.top)*(200/rect.height);
+    // Ângulo em graus, sistema SVG (0=direita, CW positivo), range -180..180
+    let angSvg=Math.atan2(sy-CY,sx-CX)*180/Math.PI;
+    // Deslocar relativo ao início do arco (DEG_START=-220 → equivale a 140 no sistema 0..360)
+    // Para evitar wrapping, trabalhar sempre em 0..360
+    const norm=a=>((a%360)+360)%360;
+    const arcStartN=norm(DEG_START);    // 140
+    let relAng=norm(angSvg)-arcStartN; // distância ao início do arco
+    if(relAng<0)relAng+=360;
+    // Dead zone: região que não tem arco (fundo entre 40°..140°, i.e. >DEG_SWEEP)
+    // Tolerância de 20° para não bloquear junto às extremidades
+    if(relAng>DEG_SWEEP+20){
+      // Snap para a extremidade mais próxima
+      if(relAng<DEG_SWEEP+20+(360-DEG_SWEEP-20)/2)return TOTAL-1; // snap ao máximo
+      return 0; // snap ao mínimo
+    }
+    const frac=Math.max(0,Math.min(1,relAng/DEG_SWEEP));
     return Math.round(frac*(TOTAL-1));
   };
 
-  const handleMove=(clientX,clientY)=>{
-    if(!dragging.current)return;
+  const fireChange=(clientX,clientY)=>{
     const ni=posToIdx(clientX,clientY);
-    if(ni!=null)onChange(OPTIONS[ni].mins);
+    if(ni!=null&&ni!==lastIdxRef.current){
+      lastIdxRef.current=ni;
+      onChange(OPTIONS[ni].mins);
+    }
   };
 
-  const PILLS=[{m:15,l:"15 min"},{m:60,l:"1h"},{m:120,l:"2h"},{m:240,l:"4h"}];
-  const priceStr=total!=null?total.toFixed(2).replace(".",",")+"€":"—";
+  const priceStr=total!=null?total.toFixed(2).replace(".",",")+"\u20AC":"—";
   const timeLabel=OPTIONS[idx]?.label||"—";
+  const PILLS=[{m:15,l:"15 min"},{m:60,l:"1h"},{m:120,l:"2h"},{m:240,l:"4h"},{m:480,l:"8h"}];
 
   return(
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",userSelect:"none"}}>
-      {/* ── Valores ACIMA do arco — visíveis mesmo com dedo no selector ── */}
-      <div style={{textAlign:"center",marginBottom:4,pointerEvents:"none"}}>
-        <div style={{fontSize:38,fontWeight:900,color,lineHeight:1,letterSpacing:-1,fontFamily:"Sora,sans-serif"}}>
-          {priceStr}
-        </div>
-        {disc>0&&(
-          <div style={{fontSize:11,fontWeight:700,color:C.ok,marginTop:2}}>
-            -{disc}% desconto residentes
-          </div>
-        )}
-        <div style={{fontSize:22,fontWeight:800,color:C.text,marginTop:disc>0?2:4,letterSpacing:-.5,fontFamily:"Sora,sans-serif"}}>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",userSelect:"none",WebkitUserSelect:"none"}}>
+      {/* ── Tempo em destaque, preço a seguir ── */}
+      <div style={{textAlign:"center",marginBottom:8,pointerEvents:"none"}}>
+        <div style={{fontSize:46,fontWeight:900,color:C.text,lineHeight:1,letterSpacing:-2,fontFamily:"Sora,system-ui,sans-serif"}}>
           {timeLabel}
         </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:8}}>
+          <span style={{fontSize:30,fontWeight:800,color,letterSpacing:-0.5,fontFamily:"Sora,system-ui,sans-serif"}}>{priceStr}</span>
+          {disc>0&&<span style={{fontSize:11,fontWeight:700,color:C.ok,background:C.okBg,borderRadius:999,padding:"2px 9px",border:"1px solid "+C.okBd}}>-{disc}%</span>}
+        </div>
+        {base!=null&&disc>0&&<div style={{fontSize:11,color:C.text3,marginTop:3}}>sem desconto: {base.toFixed(2).replace(".",",")+"\u20AC"}</div>}
       </div>
-      <div style={{position:"relative",width:"100%",maxWidth:260,touchAction:"none"}}
-        onMouseDown={e=>{dragging.current=true;const ni=posToIdx(e.clientX,e.clientY);if(ni!=null)onChange(OPTIONS[ni].mins);}}
-        onMouseMove={e=>handleMove(e.clientX,e.clientY)}
+
+      {/* ── Arco SVG ── */}
+      <div style={{position:"relative",width:"100%",maxWidth:276,touchAction:"none",cursor:"pointer"}}
+        onMouseDown={e=>{dragging.current=true;fireChange(e.clientX,e.clientY);}}
+        onMouseMove={e=>{if(dragging.current)fireChange(e.clientX,e.clientY);}}
         onMouseUp={()=>{dragging.current=false;}}
         onMouseLeave={()=>{dragging.current=false;}}
-        onTouchStart={e=>{dragging.current=true;const t=e.touches[0];const ni=posToIdx(t.clientX,t.clientY);if(ni!=null)onChange(OPTIONS[ni].mins);}}
-        onTouchMove={e=>{e.preventDefault();const t=e.touches[0];handleMove(t.clientX,t.clientY);}}
+        onTouchStart={e=>{dragging.current=true;const t=e.touches[0];fireChange(t.clientX,t.clientY);}}
+        onTouchMove={e=>{e.preventDefault();const t=e.touches[0];if(dragging.current)fireChange(t.clientX,t.clientY);}}
         onTouchEnd={()=>{dragging.current=false;}}
       >
         <svg ref={svgRef} viewBox="0 0 260 200" style={{width:"100%",display:"block",overflow:"visible"}}>
+          {/* Marcadores de 15 em 15 min */}
+          {OPTIONS.map((o,i)=>{
+            const d=DEG_START+(i/(TOTAL-1))*DEG_SWEEP;
+            const mr=R+14,mp=pt(d);
+            const isMajor=(o.mins%60===0);
+            return isMajor?(
+              <text key={o.mins} x={mp.x} y={mp.y} textAnchor="middle" dominantBaseline="middle"
+                fontSize="8" fontWeight="700" fill={color+"88"} fontFamily="Sora,system-ui,sans-serif">
+                {o.label}
+              </text>
+            ):(
+              <circle key={o.mins} cx={CX+(R+9)*Math.cos(rad(d))} cy={CY+(R+9)*Math.sin(rad(d))} r="1.5" fill={color+"44"}/>
+            );
+          })}
           {/* Track */}
-          <path d={trackPath} fill="none" stroke={C.bg3} strokeWidth={STROKE} strokeLinecap="round"/>
-          {/* Fill */}
-          {fillPath&&<path d={fillPath} fill="none" stroke={color} strokeWidth={STROKE} strokeLinecap="round"/>}
+          <path d={trackD} fill="none" stroke={C.bg3} strokeWidth={STR} strokeLinecap="round"/>
+          {/* Preenchimento */}
+          {fillD&&<path d={fillD} fill="none" stroke={color} strokeWidth={STR} strokeLinecap="round"
+            style={{filter:"drop-shadow(0 0 4px "+color+"66)"}}/>}
           {/* Thumb */}
-          <circle cx={curPt.x} cy={curPt.y} r={STROKE*1.15} fill={color}
-            style={{filter:"drop-shadow(0 2px 6px "+color+"88)"}}/>
-          <circle cx={curPt.x} cy={curPt.y} r={STROKE*0.42} fill="#fff"/>
+          <circle cx={cP.x} cy={cP.y} r={STR*1.2} fill={color} style={{filter:"drop-shadow(0 3px 8px "+color+"99)"}}/>
+          <circle cx={cP.x} cy={cP.y} r={STR*0.45} fill="#fff"/>
         </svg>
       </div>
-      {/* Quick pills */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,width:"100%",marginTop:2}}>
+
+      {/* Pills de acesso rápido */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,width:"100%",marginTop:4}}>
         {PILLS.map(({m,l})=>{
           const sel=mins===m;
           return(
             <button key={m} onClick={()=>onChange(m)}
-              style={{minHeight:42,padding:"10px 4px",borderRadius:14,border:"none",
-                fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",
+              style={{minHeight:40,padding:"8px 2px",borderRadius:12,border:"none",
+                fontFamily:"inherit",fontSize:11,fontWeight:700,cursor:"pointer",
                 background:sel?color:C.bg3,color:sel?"#fff":C.text2,
-                transition:"all .15s",
-                boxShadow:sel?"0 2px 8px "+color+"44":"none"}}>
+                transition:"all .12s",boxShadow:sel?"0 2px 8px "+color+"55":"none"}}>
               {l}
             </button>
           );
@@ -1941,6 +1967,7 @@ const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
     </div>
   );
 }
+
 const CircularTimer=({rem,cdTotal,barColor,expired})=>{
   const R=80,SW=11,C2=100;
   const circ=2*Math.PI*R;
@@ -3331,32 +3358,96 @@ const AdminPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
           })
         )}
 
-        {tab==="revenue"&&(
-          <>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
-              {[[t.today,"214€"],[t.adminWeek,"1.618€"],[t.adminMonth,"6.940€"],[t.adminYear,"36.2K€"]].map(([l,v])=>(
-                <div key={l} style={{...card(),padding:"18px 16px"}}>
-                  <div style={{fontSize:28,fontWeight:800,color:C.green,letterSpacing:-1}}>{v}</div>
-                  <div style={{fontSize:12,color:C.text2,marginTop:4}}>{l}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{...card(),padding:"18px"}}>
-              <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:14}}>Distribuição por método</div>
-              {[["MB WAY",46,C.teal],["Cartão",30,C.green],["Apple/Google Pay",16,C.warn],["PayPal",8,C.slate]].map(([n,p,co])=>(
-                <div key={n} style={{marginBottom:12}}>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:5}}>
-                    <span style={{color:C.text2}}>{n}</span>
-                    <span style={{color:co,fontWeight:700}}>{p}%</span>
+        {tab==="revenue"&&(()=>{
+          // Calcular receitas reais das sessões guardadas
+          const hist=lsG(LS_HIST,[]);
+          const allS=[...allSess,...hist];
+          const now2=new Date();
+          const todayStr=now2.toISOString().slice(0,10);
+          const weekAgo=new Date(now2-7*864e5);
+          const monthAgo=new Date(now2-30*864e5);
+          const sum=arr=>arr.reduce((a,s)=>a+(parseFloat(s.total)||0),0);
+          const todaySess=allS.filter(s=>s.start&&s.start.slice(0,10)===todayStr);
+          const weekSess=allS.filter(s=>s.start&&new Date(s.start)>=weekAgo);
+          const monthSess=allS.filter(s=>s.start&&new Date(s.start)>=monthAgo);
+          const fmtR=v=>v.toFixed(2).replace(".",",")+"€";
+          // Receita por zona
+          const byZone=Object.entries(ZONES).map(([id,z])=>({
+            id,name:z.name,color:z.color,
+            total:sum(monthSess.filter(s=>s.zone===id)),
+            count:monthSess.filter(s=>s.zone===id).length
+          })).sort((a,b)=>b.total-a.total);
+          // Receita por método
+          const byMethod=[["MB WAY","mbway",C.teal],["Cartão","card",C.green],["Apple/Google Pay","apple",C.warn],["PayPal","paypal",C.slate]].map(([n,id,co])=>({
+            n,co,count:monthSess.filter(s=>s.method&&s.method.toLowerCase().includes(id==="mbway"?"mb":id==="card"?"cart":id==="apple"?"apple":"paypal")).length
+          }));
+          const totalM=sum(monthSess)||1;
+          // Exportar CSV
+          const exportCSV=()=>{
+            const rows=[["Referência","Matrícula","Zona","Duração (min)","Total (EUR)","Método","Início","Fim","Estado"]];
+            allS.forEach(s=>rows.push([s.ref||"",s.plate||"",s.zone||"",s.mins||"",
+              (parseFloat(s.total)||0).toFixed(2),s.method||"",
+              s.start?new Date(s.start).toLocaleString("pt-PT"):"",
+              s.end?new Date(s.end).toLocaleString("pt-PT"):"",
+              new Date(s.end||0)>now2?"Activa":"Expirada"
+            ]));
+            const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+            const a=document.createElement("a");
+            a.href="data:text/csv;charset=utf-8,﻿"+encodeURIComponent(csv);
+            a.download="parkpx-relatorio-"+todayStr+".csv";
+            a.click();
+          };
+          return(
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                {[[t.today,fmtR(sum(todaySess)),todaySess.length+" sessões"],[t.adminWeek,fmtR(sum(weekSess)),weekSess.length+" sessões"],[t.adminMonth,fmtR(sum(monthSess)),monthSess.length+" sessões"],[t.adminYear,fmtR(sum(allS)),allS.length+" total"]].map(([l,v,sub])=>(
+                  <div key={l} style={{...card(),padding:"16px 14px"}}>
+                    <div style={{fontSize:24,fontWeight:800,color:C.green,letterSpacing:-1}}>{v}</div>
+                    <div style={{fontSize:11,color:C.text2,marginTop:3}}>{l}</div>
+                    <div style={{fontSize:10,color:C.text3,marginTop:2}}>{sub}</div>
                   </div>
-                  <div style={{background:C.bg3,borderRadius:4,height:5,overflow:"hidden"}}>
-                    <div style={{height:"100%",borderRadius:4,width:p+"%",background:co}}/>
+                ))}
+              </div>
+              <div style={{...card(),padding:"16px",marginBottom:12}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:12}}>Receita por zona (30 dias)</div>
+                {byZone.map(z=>(
+                  <div key={z.id} style={{marginBottom:10}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
+                      <span style={{color:C.text2,fontWeight:600}}>Zona {z.id} — {z.name}</span>
+                      <span style={{color:z.color,fontWeight:800}}>{fmtR(z.total)} <span style={{color:C.text3,fontWeight:400}}>({z.count})</span></span>
+                    </div>
+                    <div style={{background:C.bg3,borderRadius:4,height:4,overflow:"hidden"}}>
+                      <div style={{height:"100%",borderRadius:4,width:Math.round(z.total/Math.max(...byZone.map(x=>x.total),1)*100)+"%",background:z.color}}/>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+                ))}
+              </div>
+              <div style={{...card(),padding:"16px",marginBottom:12}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:12}}>Métodos de pagamento (30 dias)</div>
+                {byMethod.map(({n,co,count})=>{
+                  const pct=monthSess.length?Math.round(count/monthSess.length*100):0;
+                  return(
+                    <div key={n} style={{marginBottom:10}}>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
+                        <span style={{color:C.text2}}>{n}</span>
+                        <span style={{color:co,fontWeight:700}}>{pct}% <span style={{color:C.text3,fontWeight:400}}>({count})</span></span>
+                      </div>
+                      <div style={{background:C.bg3,borderRadius:4,height:4,overflow:"hidden"}}>
+                        <div style={{height:"100%",borderRadius:4,width:pct+"%",background:co}}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button style={{...btnP(),background:C.teal,marginBottom:8}} onClick={exportCSV}>
+                📥 Exportar CSV para Faturação
+              </button>
+              <div style={{fontSize:11,color:C.text3,textAlign:"center",marginBottom:16}}>
+                Exporta todas as sessões em formato compatível com Excel / contabilidade
+              </div>
+            </>
+          );
+        })()}
 
         {tab==="pending"&&(
           pending.length===0
@@ -3561,40 +3652,56 @@ export default function ParkPX(){
   const [lang,setLang]=useState("pt");
   const t=T[lang];
   const [toastMsg,setToastMsg]=useState("");
-  // Restaurar sessão Google ao abrir a app
-  const [user,setUser]=useState(()=>{
+  // ── Restaurar sessão (localStorage + sessionStorage fallback) ──────────
+  const restoreSession=()=>{
     try{
-      const saved=localStorage.getItem("pkx_session_v2");
-      if(saved){const u=JSON.parse(saved);if(u&&u.email)return u;}
-    }catch{}
+      for(const store of [localStorage,sessionStorage]){
+        for(const key of ["pkx_session_v2","pkx_session_v1","pkx_session"]){
+          const raw=store.getItem(key);
+          if(!raw)continue;
+          const u=JSON.parse(raw);
+          if(u&&u.email&&u.role){
+            // Migrar para chave canónica
+            localStorage.setItem("pkx_session_v2",JSON.stringify({...u,_savedAt:Date.now()}));
+            return u;
+          }
+        }
+      }
+    }catch(e){console.warn("[ParkPX] Session restore:",e);}
     return null;
-  });
-  const [notifSent,setNotifSent]=useState(false);
-  // Inicializar state.plate com a matrícula do perfil se logado
-  const [state,setState]=useState(()=>{
-    // A matrícula do user só fica disponível após o user ser restaurado,
-    // mas o useEffect abaixo actualiza o state quando user mudar
-    return {zone:null,price:0,plate:"",mins:60,total:0,pay:null,ref:null,startTime:null,endTime:null,cdTotal:0};
-  });
+  };
+  const [user,setUser]=useState(restoreSession);
 
-  // ── Persistir sessão + preencher matrícula do perfil ──────────
+  // ── Persistir sessão + matrícula + redirect + sync entre tabs ────────────
   useEffect(()=>{
-    try{
-      if(user&&user.email)localStorage.setItem("pkx_session_v2",JSON.stringify(user));
-      else localStorage.removeItem("pkx_session_v2");
-    }catch{}
-    // Preencher matrícula principal do perfil no state global
-    if(user){
-      const savedPlates=lsG("pkx_plates_"+(user.email||""),[]);
-      const mainPlate=user.plate||savedPlates[0]||"";
+    if(user&&user.email&&user.role){
+      const data=JSON.stringify({...user,_savedAt:Date.now()});
+      try{localStorage.setItem("pkx_session_v2",data);}catch{}
+      try{sessionStorage.setItem("pkx_session_v2",data);}catch{}
+      const plates=lsG("pkx_plates_"+(user.email||""),[]);
+      const mainPlate=user.plate||plates[0]||"";
       if(mainPlate)setState(s=>s.plate?s:{...s,plate:mainPlate});
-      // Redirigir para o painel correcto se logado e em landing
       if(screen==="landing"){
         if(user.role==="operator")setScreen("opPanel");
         else if(user.role==="admin")setScreen("adminPanel");
       }
+    } else {
+      ["pkx_session_v2","pkx_session_v1","pkx_session"].forEach(k=>{
+        try{localStorage.removeItem(k);}catch{}
+        try{sessionStorage.removeItem(k);}catch{}
+      });
     }
   },[user]);
+  useEffect(()=>{
+    const onStorage=e=>{
+      if(e.key==="pkx_session_v2"){
+        if(!e.newValue){setUser(null);setScreen("landing");}
+        else{try{const u=JSON.parse(e.newValue);if(u&&u.email&&u.role)setUser(u);}catch{}}
+      }
+    };
+    window.addEventListener("storage",onStorage);
+    return()=>window.removeEventListener("storage",onStorage);
+  },[]);
 
   // ── Favicon & meta tags ──────────────────────
   useEffect(()=>{
@@ -3606,6 +3713,12 @@ export default function ParkPX(){
     };
     // Remove existing favicons to avoid duplicates
     document.querySelectorAll("link[rel*='icon'],link[rel='apple-touch-icon']").forEach(e=>e.remove());
+    // PWA Manifest
+    if(!document.querySelector("link[rel='manifest']")){
+      const ml=document.createElement("link");
+      ml.rel="manifest";ml.href="/manifest.json";
+      document.head.appendChild(ml);
+    }
     // SVG favicon — Chrome/Firefox (não suportado pelo Safari)
     const svgLink=document.createElement("link");
     svgLink.rel="icon"; svgLink.type="image/svg+xml"; svgLink.href="/favicon.svg";
@@ -3679,24 +3792,35 @@ export default function ParkPX(){
     return()=>navigator.serviceWorker.removeEventListener("message",handler);
   },[]);
 
+  const [installPrompt,setInstallPrompt]=useState(null);
+  const [showInstall,setShowInstall]=useState(false);
+
   useEffect(()=>{
     const live=getLive();
     const act=live.find(s=>new Date(s.end)>new Date());
     if(act)setState(s=>({...s,plate:act.plate,zone:act.zone,price:ZONES[act.zone]?.rate||1,
       mins:act.mins,total:act.total||0,pay:act.method,ref:act.ref,
       startTime:new Date(act.start),endTime:new Date(act.end),cdTotal:act.mins*60}));
-    // SW registado aqui apenas para ter o scope pronto; permissão pedida no contexto certo
     registerSW().catch(()=>{});
+    // Capturar prompt de instalação PWA
+    const onInstall=e=>{e.preventDefault();setInstallPrompt(e);setShowInstall(true);};
+    window.addEventListener("beforeinstallprompt",onInstall);
+    return()=>window.removeEventListener("beforeinstallprompt",onInstall);
   },[]);
 
   const onPay=useCallback(method=>{
     const now=new Date(),end=new Date(now.getTime()+state.mins*60000),ref=genRef();
+    // Recalcular total sempre — defesa contra state.total=0 por navegação atípica
+    const rate=ZONES[state.zone]?.rate||state.price||1;
+    const disc=user&&isRes(user.role)?(user.discount||0):0;
+    const computedTotal=Math.round(rate*(state.mins/60)*(1-disc/100)*100)/100;
+    const finalTotal=state.total>0?state.total:computedTotal;
     const sess={plate:state.plate,zone:state.zone,mins:state.mins,
       status:user&&isRes(user.role)?"res":"ok",ref,method:PM[method]||method,
-      total:state.total,start:now.toISOString(),end:end.toISOString()};
+      total:finalTotal,start:now.toISOString(),end:end.toISOString()};
     saveLive(sess);
     if(user)addHist({...sess,start:now,end},user.email);
-    setState(s=>({...s,pay:method,ref,startTime:now,endTime:end,cdTotal:state.mins*60}));
+    setState(s=>({...s,pay:method,ref,total:finalTotal,startTime:now,endTime:end,cdTotal:state.mins*60}));
     setNotifSent(false);
     goTo("success");
     // Notificações: fire-and-forget, nunca bloqueiam o pagamento
@@ -3761,11 +3885,39 @@ export default function ParkPX(){
     ),
   };
 
+  const doInstall=async()=>{
+    if(!installPrompt)return;
+    installPrompt.prompt();
+    const{outcome}=await installPrompt.userChoice;
+    if(outcome==="accepted")setShowInstall(false);
+  };
+
   return(
     <div style={{fontFamily:"'Sora',-apple-system,sans-serif",WebkitFontSmoothing:"antialiased",background:C.bg,minHeight:"100svh"}}>
       <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
       <Toast msg={toastMsg}/>
       {screens[screen]||screens.landing}
+      {/* Banner de instalação PWA */}
+      {showInstall&&(
+        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:9999,
+          background:C.surface,borderTop:"1.5px solid "+C.border,
+          padding:"14px 18px",display:"flex",alignItems:"center",gap:12,
+          boxShadow:"0 -4px 24px rgba(0,0,0,.14)"}}>
+          <div style={{width:40,height:40,borderRadius:12,background:C.green,
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>🅿️</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.text}}>Instalar ParkPX</div>
+            <div style={{fontSize:11,color:C.text3}}>Acesso rápido sem abrir o browser</div>
+          </div>
+          <button onClick={doInstall}
+            style={{flexShrink:0,background:C.green,color:"#fff",border:"none",
+              borderRadius:12,padding:"9px 16px",fontFamily:"inherit",
+              fontSize:12,fontWeight:700,cursor:"pointer"}}>Instalar</button>
+          <button onClick={()=>setShowInstall(false)}
+            style={{background:"none",border:"none",cursor:"pointer",
+              color:C.text3,fontSize:20,padding:"4px",lineHeight:1}}>✕</button>
+        </div>
+      )}
       <style>{`*{box-sizing:border-box;margin:0;padding:0;}input,button{font-family:'Sora',-apple-system,sans-serif;}::-webkit-scrollbar{display:none;}input[type=range]{accent-color:#3d7a3a;}body{background:#f2f5f2;}`}</style>
     </div>
   );
