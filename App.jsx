@@ -57,9 +57,9 @@ const T = {
     paymentHistory:"Histórico", noHistory:"Sem pagamentos anteriores.",
     faq:"FAQ's", terms:"Termos e Condições", support:"Suporte",
     logout:"Sair",
-    // Operador
-    opDashboard:"Verificação de Estacionamento",
-    opSelectZone:"Seleccione a zona em fiscalização",
+    // Fiscal
+    opDashboard:"Painel do Fiscal",
+    opSelectZone:"Seleccione a zona a fiscalizar",
     opChangeZone:"Alterar Zona",
     opCheckPlate:"Verificar Matrícula",
     opEnterPlate:"Introduzir matrícula",
@@ -501,7 +501,23 @@ const NavLink=({onClick,children})=>(
 // ─────────────────────────────────────────────
 //  HAMBURGER MENU
 // ─────────────────────────────────────────────
-const Menu=({goTo,lang,setLang,t})=>{
+// Seletor de língua compacto — aparece no header ao lado do menu
+const LangToggle=({lang,setLang})=>(
+  <div style={{display:"flex",alignItems:"center",background:C.bg3,borderRadius:8,padding:2,gap:2}}>
+    {["pt","en"].map(l=>(
+      <button key={l} onClick={()=>setLang(l)}
+        style={{background:lang===l?C.surface:"transparent",
+          border:lang===l?`1px solid ${C.border}`:"1px solid transparent",
+          borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"inherit",
+          fontSize:11,fontWeight:700,color:lang===l?C.green:C.text3,
+          transition:"all .15s",lineHeight:1.4}}>
+        {l.toUpperCase()}
+      </button>
+    ))}
+  </div>
+);
+
+const Menu=({goTo,t})=>{
   const [open,setOpen]=useState(false);
   const items=[{id:"faq",icon:"❓",label:t.faq},{id:"terms",icon:"📄",label:t.terms},{id:"support",icon:"💬",label:t.support}];
   return(
@@ -518,7 +534,7 @@ const Menu=({goTo,lang,setLang,t})=>{
       {open&&(
         <div style={{position:"absolute",top:"calc(100% + 8px)",right:0,
           background:C.surface,border:`1px solid ${C.border}`,borderRadius:18,
-          padding:"8px",minWidth:220,zIndex:9999,
+          padding:"8px",minWidth:200,zIndex:9999,
           boxShadow:"0 12px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06)"}}>
           {items.map(({id,icon,label})=>(
             <button key={id} onClick={()=>{setOpen(false);goTo(id);}}
@@ -528,18 +544,6 @@ const Menu=({goTo,lang,setLang,t})=>{
               <span style={{fontSize:17,flexShrink:0}}>{icon}</span><span>{label}</span>
             </button>
           ))}
-          <div style={{height:1,background:C.border,margin:"4px 8px"}}/>
-          <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px"}}>
-            <span style={{fontSize:12,color:C.text3,fontWeight:500,flex:1}}>Idioma / Language</span>
-            {["pt","en"].map(l=>(
-              <button key={l} onClick={()=>setLang(l)}
-                style={{background:lang===l?C.greenL:"transparent",border:`1px solid ${lang===l?C.green:C.border}`,
-                  borderRadius:7,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit",
-                  fontSize:12,fontWeight:700,color:lang===l?C.green:C.text3}}>
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
           <div style={{padding:"4px 14px 8px",fontSize:10,color:C.text3}}>Parquímetro Digital · v9.0</div>
         </div>
       )}
@@ -658,8 +662,10 @@ const Footer=({t})=>(
       <div style={{marginTop:8,fontSize:11,opacity:.7}}>{t.footerLegal}</div>
       <div style={{fontSize:10,opacity:.4,marginTop:4}}>© {new Date().getFullYear()} · {t.footerRights}</div>
     </div>
-    <div style={{marginTop:16,fontSize:10,letterSpacing:.8,color:"#333333",opacity:.5,fontWeight:600}}>
-      POWERED BY ATLAS
+    <div style={{marginTop:20,paddingTop:16,borderTop:`1px solid ${C.border}`,textAlign:"center"}}>
+      <div style={{fontSize:10,color:C.text3,opacity:.5,letterSpacing:.3}}>
+        Desenvolvida por <span style={{fontWeight:700,letterSpacing:.8}}>ATLAS</span>
+      </div>
     </div>
   </div>
 );
@@ -672,7 +678,7 @@ const InfoScreen=({goTo,screen,lang,setLang,t})=>{
     <div style={{minHeight:"100svh",background:C.bg,display:"flex",flexDirection:"column"}}>
       <div style={{position:"relative",zIndex:9999}}>
         <Nav left={<Back onClick={()=>goTo("landing")}/>} title={title}
-          right={<div style={{position:"relative"}}><Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/></div>}/>
+          right={<div style={{display:"flex",alignItems:"center",gap:8,position:"relative"}}><LangToggle lang={lang} setLang={setLang}/><Menu goTo={goTo} t={t}/></div>}/>
       </div>
       <div style={{flex:1,padding:"24px 18px",maxWidth:480,margin:"0 auto",width:"100%"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
@@ -745,34 +751,35 @@ const Landing=({goTo,state,lang,setLang,t})=>(
   <div style={{minHeight:"100svh",background:C.bg,display:"flex",flexDirection:"column"}}>
     {/* Header */}
     <div style={{position:"relative",zIndex:9999,display:"flex",alignItems:"center",
-      justifyContent:"space-between",padding:"18px 20px",
+      justifyContent:"space-between",padding:"14px 18px",
       borderBottom:`1px solid ${C.border}`}}>
       <img src={CMP_LOGO} alt="Câmara Municipal de Peniche"
         style={{height:26,width:"auto",opacity:.9}}/>
-      <div style={{position:"relative"}}>
-        <Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <LangToggle lang={lang} setLang={setLang}/>
+        <div style={{position:"relative"}}><Menu goTo={goTo} t={t}/></div>
       </div>
     </div>
     {/* Hero */}
     <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
-      justifyContent:"center",textAlign:"center",padding:"56px 32px 64px"}}>
+      justifyContent:"center",textAlign:"center",padding:"20px 28px 24px"}}>
       <div style={{display:"inline-flex",alignItems:"center",gap:7,background:C.okBg,
-        borderRadius:999,padding:"6px 16px",marginBottom:32,fontSize:12,fontWeight:600,
+        borderRadius:999,padding:"5px 14px",marginBottom:18,fontSize:11,fontWeight:600,
         color:C.ok,border:`1px solid ${C.okBd}`,letterSpacing:".2px"}}>
         <span style={{width:6,height:6,background:C.ok,borderRadius:"50%"}}/>
         {t.active}
       </div>
       <div style={{fontSize:11,fontWeight:700,letterSpacing:3.5,textTransform:"uppercase",
-        color:C.text3,marginBottom:10}}>
+        color:C.text3,marginBottom:6}}>
         Parquímetro
       </div>
-      <div style={{fontSize:68,fontWeight:900,letterSpacing:-3,lineHeight:.88,color:C.text,marginBottom:10}}>
+      <div style={{fontSize:54,fontWeight:900,letterSpacing:-2,lineHeight:.9,color:C.text,marginBottom:8}}>
         Digital
       </div>
-      <div style={{fontSize:14,color:C.text2,lineHeight:1.7,maxWidth:260,marginBottom:12}}>
+      <div style={{fontSize:13,color:C.text2,lineHeight:1.6,maxWidth:240,marginBottom:8}}>
         Simples. Rápido. Sem papel.
       </div>
-      <div style={{fontSize:12,color:C.text3,marginBottom:40}}>Município de Peniche · 6 Zonas Tarifadas</div>
+      <div style={{fontSize:11,color:C.text3,marginBottom:24}}>Município de Peniche · 6 Zonas Tarifadas</div>
 
       {state.endTime&&new Date(state.endTime)>new Date()&&(
         <div onClick={()=>goTo("success")}
@@ -961,7 +968,7 @@ const LoginScreen=({goTo,setUser,toast,t,lang,setLang})=>{
               color:C.text3,marginBottom:8}}>Parquímetro Digital</div>
             <div style={{fontSize:24,fontWeight:800,color:C.text,letterSpacing:"-.5px"}}>{t.signIn}</div>
             <div style={{fontSize:13,color:C.text2,marginTop:6,lineHeight:1.6}}>
-              Cidadãos · Residentes · Trabalhadores
+              Cidadãos · Residentes · Trabalhadores · Fiscais
             </div>
           </div>
 
@@ -1181,6 +1188,145 @@ const GoogleProfileScreen=({goTo,user,setUser,toast,t})=>{
 //  ZONE LANDING — ecrã directamente após leitura de QR de zona
 //  Fundo com a cor da zona + pagamento imediato (matrícula + tempo)
 // ─────────────────────────────────────────────
+const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
+  // 32 steps de 15 em 15 min, de 15min até 8h
+  const OPTIONS=useMemo(()=>{
+    const out=[];
+    for(let m=15;m<=480;m+=15){
+      const h=Math.floor(m/60),r=m%60;
+      out.push({mins:m,label:h===0?m+" min":r===0?(h===1?"1 hora":h+" horas"):h+"h "+String(r).padStart(2,"0")});
+    }
+    return out;
+  },[]);
+  const TOTAL=OPTIONS.length; // 32
+  const idx=Math.max(0,OPTIONS.findIndex(o=>o.mins===mins));
+  const pct=TOTAL>1?idx/(TOTAL-1):0;
+
+  // Geometria: arco de -220° a +40° (sentido horário), centro (130,128), raio 88
+  const R=88,CX=130,CY=128,STR=16;
+  const DEG_START=-220, DEG_SWEEP=260;
+  const rad=d=>d*Math.PI/180;
+  const pt=d=>({x:CX+R*Math.cos(rad(d)),y:CY+R*Math.sin(rad(d))});
+  const sP=pt(DEG_START), eP=pt(DEG_START+DEG_SWEEP);
+  const curDeg=DEG_START+pct*DEG_SWEEP;
+  const cP=pt(curDeg);
+  const largeArc=pct*DEG_SWEEP>180?1:0;
+  const trackD=`M ${sP.x.toFixed(2)} ${sP.y.toFixed(2)} A ${R} ${R} 0 1 1 ${eP.x.toFixed(2)} ${eP.y.toFixed(2)}`;
+  const fillD=pct>0?`M ${sP.x.toFixed(2)} ${sP.y.toFixed(2)} A ${R} ${R} 0 ${largeArc} 1 ${cP.x.toFixed(2)} ${cP.y.toFixed(2)}`:null;
+  const color=zoneColor||C.green;
+  const svgRef=useRef(null);
+  const dragging=useRef(false);
+  const lastIdxRef=useRef(idx);
+
+  // ── Conversão posição → índice ──────────────────────────────────────────
+  // Não usa atan2 normalizado — usa ângulo SVG directo relativo ao centro
+  const posToIdx=(clientX,clientY)=>{
+    if(!svgRef.current)return null;
+    const rect=svgRef.current.getBoundingClientRect();
+    // Coordenadas em espaço SVG (viewBox 0 0 260 200)
+    const sx=(clientX-rect.left)*(260/rect.width);
+    const sy=(clientY-rect.top)*(200/rect.height);
+    // Ângulo em graus, sistema SVG (0=direita, CW positivo), range -180..180
+    let angSvg=Math.atan2(sy-CY,sx-CX)*180/Math.PI;
+    // Deslocar relativo ao início do arco (DEG_START=-220 → equivale a 140 no sistema 0..360)
+    // Para evitar wrapping, trabalhar sempre em 0..360
+    const norm=a=>((a%360)+360)%360;
+    const arcStartN=norm(DEG_START);    // 140
+    let relAng=norm(angSvg)-arcStartN; // distância ao início do arco
+    if(relAng<0)relAng+=360;
+    // Dead zone: região que não tem arco (fundo entre 40°..140°, i.e. >DEG_SWEEP)
+    // Tolerância de 20° para não bloquear junto às extremidades
+    if(relAng>DEG_SWEEP+20){
+      // Snap para a extremidade mais próxima
+      if(relAng<DEG_SWEEP+20+(360-DEG_SWEEP-20)/2)return TOTAL-1; // snap ao máximo
+      return 0; // snap ao mínimo
+    }
+    const frac=Math.max(0,Math.min(1,relAng/DEG_SWEEP));
+    return Math.round(frac*(TOTAL-1));
+  };
+
+  const fireChange=(clientX,clientY)=>{
+    const ni=posToIdx(clientX,clientY);
+    if(ni!=null&&ni!==lastIdxRef.current){
+      lastIdxRef.current=ni;
+      onChange(OPTIONS[ni].mins);
+    }
+  };
+
+  const priceStr=total!=null?total.toFixed(2).replace(".",",")+"\u20AC":"—";
+  const timeLabel=OPTIONS[idx]?.label||"—";
+  const PILLS=[{m:15,l:"15 min"},{m:60,l:"1h"},{m:120,l:"2h"},{m:240,l:"4h"},{m:480,l:"8h"}];
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",userSelect:"none",WebkitUserSelect:"none"}}>
+      {/* ── Tempo em destaque, preço a seguir ── */}
+      <div style={{textAlign:"center",marginBottom:8,pointerEvents:"none"}}>
+        <div style={{fontSize:46,fontWeight:900,color:C.text,lineHeight:1,letterSpacing:-2,fontFamily:"Sora,system-ui,sans-serif"}}>
+          {timeLabel}
+        </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:8}}>
+          <span style={{fontSize:30,fontWeight:800,color,letterSpacing:-0.5,fontFamily:"Sora,system-ui,sans-serif"}}>{priceStr}</span>
+          {disc>0&&<span style={{fontSize:11,fontWeight:700,color:C.ok,background:C.okBg,borderRadius:999,padding:"2px 9px",border:"1px solid "+C.okBd}}>-{disc}%</span>}
+        </div>
+        {base!=null&&disc>0&&<div style={{fontSize:11,color:C.text3,marginTop:3}}>sem desconto: {base.toFixed(2).replace(".",",")+"\u20AC"}</div>}
+      </div>
+
+      {/* ── Arco SVG ── */}
+      <div style={{position:"relative",width:"100%",maxWidth:276,touchAction:"none",cursor:"pointer"}}
+        onMouseDown={e=>{dragging.current=true;fireChange(e.clientX,e.clientY);}}
+        onMouseMove={e=>{if(dragging.current)fireChange(e.clientX,e.clientY);}}
+        onMouseUp={()=>{dragging.current=false;}}
+        onMouseLeave={()=>{dragging.current=false;}}
+        onTouchStart={e=>{dragging.current=true;const t=e.touches[0];fireChange(t.clientX,t.clientY);}}
+        onTouchMove={e=>{e.preventDefault();const t=e.touches[0];if(dragging.current)fireChange(t.clientX,t.clientY);}}
+        onTouchEnd={()=>{dragging.current=false;}}
+      >
+        <svg ref={svgRef} viewBox="0 0 260 200" style={{width:"100%",display:"block",overflow:"visible"}}>
+          {/* Marcadores de 15 em 15 min */}
+          {OPTIONS.map((o,i)=>{
+            const d=DEG_START+(i/(TOTAL-1))*DEG_SWEEP;
+            const mr=R+14,mp=pt(d);
+            const isMajor=(o.mins%60===0);
+            return isMajor?(
+              <text key={o.mins} x={mp.x} y={mp.y} textAnchor="middle" dominantBaseline="middle"
+                fontSize="8" fontWeight="700" fill={color+"88"} fontFamily="Sora,system-ui,sans-serif">
+                {o.label}
+              </text>
+            ):(
+              <circle key={o.mins} cx={CX+(R+9)*Math.cos(rad(d))} cy={CY+(R+9)*Math.sin(rad(d))} r="1.5" fill={color+"44"}/>
+            );
+          })}
+          {/* Track */}
+          <path d={trackD} fill="none" stroke={C.bg3} strokeWidth={STR} strokeLinecap="round"/>
+          {/* Preenchimento */}
+          {fillD&&<path d={fillD} fill="none" stroke={color} strokeWidth={STR} strokeLinecap="round"
+            style={{filter:"drop-shadow(0 0 4px "+color+"66)"}}/>}
+          {/* Thumb */}
+          <circle cx={cP.x} cy={cP.y} r={STR*1.2} fill={color} style={{filter:"drop-shadow(0 3px 8px "+color+"99)"}}/>
+          <circle cx={cP.x} cy={cP.y} r={STR*0.45} fill="#fff"/>
+        </svg>
+      </div>
+
+      {/* Pills de acesso rápido */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,width:"100%",marginTop:4}}>
+        {PILLS.map(({m,l})=>{
+          const sel=mins===m;
+          return(
+            <button key={m} onClick={()=>onChange(m)}
+              style={{minHeight:40,padding:"8px 2px",borderRadius:12,border:"none",
+                fontFamily:"inherit",fontSize:11,fontWeight:700,cursor:"pointer",
+                background:sel?color:C.bg3,color:sel?"#fff":C.text2,
+                transition:"all .12s",boxShadow:sel?"0 2px 8px "+color+"55":"none"}}>
+              {l}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
 const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
   const zId=state.zone;
   const z=ZONES[zId];
@@ -1232,36 +1378,36 @@ const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
   return(
     <div style={{minHeight:"100svh",background:bgGrad,display:"flex",flexDirection:"column"}}>
       {/* Topo com zona */}
-      <div style={{padding:"52px 24px 32px",textAlign:"center",position:"relative"}}>
+      <div style={{padding:"24px 20px 20px",textAlign:"center",position:"relative"}}>
         <button onClick={()=>goTo("landing")}
-          style={{position:"absolute",top:16,left:16,width:44,height:44,borderRadius:22,
+          style={{position:"absolute",top:14,left:14,width:40,height:40,borderRadius:20,
             background:"rgba(255,255,255,.22)",border:"none",color:"#fff",fontSize:20,
             cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
           ←
         </button>
         {/* Badge de zona */}
-        <div style={{display:"inline-flex",alignItems:"center",gap:10,
+        <div style={{display:"inline-flex",alignItems:"center",gap:8,
           background:"rgba(255,255,255,.18)",borderRadius:999,
-          padding:"8px 20px",marginBottom:16,backdropFilter:"blur(8px)"}}>
-          <div style={{width:32,height:32,borderRadius:16,background:"rgba(255,255,255,.3)",
-            color:"#fff",fontWeight:900,fontSize:15,display:"flex",
+          padding:"6px 16px",marginBottom:10,backdropFilter:"blur(8px)"}}>
+          <div style={{width:26,height:26,borderRadius:13,background:"rgba(255,255,255,.3)",
+            color:"#fff",fontWeight:900,fontSize:13,display:"flex",
             alignItems:"center",justifyContent:"center"}}>
             {zId}
           </div>
-          <div style={{color:"#fff",fontWeight:700,fontSize:14,letterSpacing:.3}}>
+          <div style={{color:"#fff",fontWeight:700,fontSize:13,letterSpacing:.3}}>
             Zona {zId} · {ZR(zId)}
           </div>
         </div>
-        <div style={{fontSize:26,fontWeight:900,color:"#fff",letterSpacing:-.5,marginBottom:4}}>
+        <div style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-.5,marginBottom:2}}>
           {z.name}
         </div>
-        <div style={{fontSize:13,color:"rgba(255,255,255,.78)",fontWeight:500}}>
+        <div style={{fontSize:12,color:"rgba(255,255,255,.78)",fontWeight:500}}>
           {z.desc}
         </div>
         {disc>0&&(
           <div style={{display:"inline-flex",alignItems:"center",gap:6,
             background:"rgba(255,255,255,.22)",borderRadius:999,
-            padding:"5px 14px",marginTop:10,backdropFilter:"blur(8px)"}}>
+            padding:"4px 12px",marginTop:8,backdropFilter:"blur(8px)"}}>
             <span style={{color:"#fff",fontSize:12,fontWeight:700}}>
               ✓ Desconto de {disc}% aplicado
             </span>
@@ -1271,7 +1417,7 @@ const ZoneLanding=({goTo,state,setState,toast,t,user})=>{
 
       {/* Formulário rápido */}
       <div style={{flex:1,background:"#fff",borderRadius:"28px 28px 0 0",
-        padding:"28px 20px 40px",display:"flex",flexDirection:"column",gap:20}}>
+        padding:"20px 20px 32px",display:"flex",flexDirection:"column",gap:14}}>
 
         {/* Matrícula */}
         <div>
@@ -1361,7 +1507,7 @@ const ZoneScreen=({goTo,state,setState,toast,lang,setLang,t,user})=>{
     <div style={{minHeight:"100svh",background:state.zone?`linear-gradient(175deg,${ZONES[state.zone].color}18 0%,${C.bg} 40%)`:C.bg,display:"flex",flexDirection:"column"}}>
       <div style={{position:"relative",zIndex:9999}}>
         <Nav left={<Back onClick={()=>goTo("landing")}/>} title={t.pay.replace("🅿️  ","")}
-          right={<div style={{position:"relative"}}><Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/></div>}/>
+          right={<div style={{display:"flex",alignItems:"center",gap:8,position:"relative"}}><LangToggle lang={lang} setLang={setLang}/><Menu goTo={goTo} t={t}/></div>}/>
       </div>
       <Steps step={0} labels={[t.zone,"Tempo",t.payment]}/>
       <div style={{flex:1,padding:"20px 18px 40px",maxWidth:480,margin:"0 auto",width:"100%"}}>
@@ -1655,7 +1801,7 @@ const TimeScreen=({goTo,state,setState,lang,setLang,t,user})=>{
     <div style={{minHeight:"100svh",background:C.bg,display:"flex",flexDirection:"column"}}>
       <div style={{position:"relative",zIndex:9999}}>
         <Nav left={<Back onClick={()=>goTo("zone")}/>} title={t.howLong}
-          right={<div style={{position:"relative"}}><Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/></div>}/>
+          right={<div style={{display:"flex",alignItems:"center",gap:8,position:"relative"}}><LangToggle lang={lang} setLang={setLang}/><Menu goTo={goTo} t={t}/></div>}/>
       </div>
       <Steps step={1} labels={[t.zone,"Tempo",t.payment]}/>
 
@@ -1728,7 +1874,7 @@ const PaymentScreen=({goTo,state,setState,onPay,lang,setLang,t})=>{
     <div style={{minHeight:"100svh",background:C.bg,display:"flex",flexDirection:"column"}}>
       <div style={{position:"relative",zIndex:9999}}>
         <Nav left={<Back onClick={()=>goTo("time")}/>} title={t.paymentMethod}
-          right={<div style={{position:"relative"}}><Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/></div>}/>
+          right={<div style={{display:"flex",alignItems:"center",gap:8,position:"relative"}}><LangToggle lang={lang} setLang={setLang}/><Menu goTo={goTo} t={t}/></div>}/>
       </div>
       <Steps step={2} labels={[t.zone,"Tempo",t.payment]}/>
 
@@ -1829,144 +1975,6 @@ const PaymentScreen=({goTo,state,setState,onPay,lang,setLang,t})=>{
   );
 };
 
-
-const ArcDurationPicker=({mins,onChange,zoneColor,total,disc,base})=>{
-  // 32 steps de 15 em 15 min, de 15min até 8h
-  const OPTIONS=useMemo(()=>{
-    const out=[];
-    for(let m=15;m<=480;m+=15){
-      const h=Math.floor(m/60),r=m%60;
-      out.push({mins:m,label:h===0?m+" min":r===0?(h===1?"1 hora":h+" horas"):h+"h "+String(r).padStart(2,"0")});
-    }
-    return out;
-  },[]);
-  const TOTAL=OPTIONS.length; // 32
-  const idx=Math.max(0,OPTIONS.findIndex(o=>o.mins===mins));
-  const pct=TOTAL>1?idx/(TOTAL-1):0;
-
-  // Geometria: arco de -220° a +40° (sentido horário), centro (130,128), raio 88
-  const R=88,CX=130,CY=128,STR=16;
-  const DEG_START=-220, DEG_SWEEP=260;
-  const rad=d=>d*Math.PI/180;
-  const pt=d=>({x:CX+R*Math.cos(rad(d)),y:CY+R*Math.sin(rad(d))});
-  const sP=pt(DEG_START), eP=pt(DEG_START+DEG_SWEEP);
-  const curDeg=DEG_START+pct*DEG_SWEEP;
-  const cP=pt(curDeg);
-  const largeArc=pct*DEG_SWEEP>180?1:0;
-  const trackD=`M ${sP.x.toFixed(2)} ${sP.y.toFixed(2)} A ${R} ${R} 0 1 1 ${eP.x.toFixed(2)} ${eP.y.toFixed(2)}`;
-  const fillD=pct>0?`M ${sP.x.toFixed(2)} ${sP.y.toFixed(2)} A ${R} ${R} 0 ${largeArc} 1 ${cP.x.toFixed(2)} ${cP.y.toFixed(2)}`:null;
-  const color=zoneColor||C.green;
-  const svgRef=useRef(null);
-  const dragging=useRef(false);
-  const lastIdxRef=useRef(idx);
-
-  // ── Conversão posição → índice ──────────────────────────────────────────
-  // Não usa atan2 normalizado — usa ângulo SVG directo relativo ao centro
-  const posToIdx=(clientX,clientY)=>{
-    if(!svgRef.current)return null;
-    const rect=svgRef.current.getBoundingClientRect();
-    // Coordenadas em espaço SVG (viewBox 0 0 260 200)
-    const sx=(clientX-rect.left)*(260/rect.width);
-    const sy=(clientY-rect.top)*(200/rect.height);
-    // Ângulo em graus, sistema SVG (0=direita, CW positivo), range -180..180
-    let angSvg=Math.atan2(sy-CY,sx-CX)*180/Math.PI;
-    // Deslocar relativo ao início do arco (DEG_START=-220 → equivale a 140 no sistema 0..360)
-    // Para evitar wrapping, trabalhar sempre em 0..360
-    const norm=a=>((a%360)+360)%360;
-    const arcStartN=norm(DEG_START);    // 140
-    let relAng=norm(angSvg)-arcStartN; // distância ao início do arco
-    if(relAng<0)relAng+=360;
-    // Dead zone: região que não tem arco (fundo entre 40°..140°, i.e. >DEG_SWEEP)
-    // Tolerância de 20° para não bloquear junto às extremidades
-    if(relAng>DEG_SWEEP+20){
-      // Snap para a extremidade mais próxima
-      if(relAng<DEG_SWEEP+20+(360-DEG_SWEEP-20)/2)return TOTAL-1; // snap ao máximo
-      return 0; // snap ao mínimo
-    }
-    const frac=Math.max(0,Math.min(1,relAng/DEG_SWEEP));
-    return Math.round(frac*(TOTAL-1));
-  };
-
-  const fireChange=(clientX,clientY)=>{
-    const ni=posToIdx(clientX,clientY);
-    if(ni!=null&&ni!==lastIdxRef.current){
-      lastIdxRef.current=ni;
-      onChange(OPTIONS[ni].mins);
-    }
-  };
-
-  const priceStr=total!=null?total.toFixed(2).replace(".",",")+"\u20AC":"—";
-  const timeLabel=OPTIONS[idx]?.label||"—";
-  const PILLS=[{m:15,l:"15 min"},{m:60,l:"1h"},{m:120,l:"2h"},{m:240,l:"4h"},{m:480,l:"8h"}];
-
-  return(
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",userSelect:"none",WebkitUserSelect:"none"}}>
-      {/* ── Tempo em destaque, preço a seguir ── */}
-      <div style={{textAlign:"center",marginBottom:8,pointerEvents:"none"}}>
-        <div style={{fontSize:46,fontWeight:900,color:C.text,lineHeight:1,letterSpacing:-2,fontFamily:"Sora,system-ui,sans-serif"}}>
-          {timeLabel}
-        </div>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:8}}>
-          <span style={{fontSize:30,fontWeight:800,color,letterSpacing:-0.5,fontFamily:"Sora,system-ui,sans-serif"}}>{priceStr}</span>
-          {disc>0&&<span style={{fontSize:11,fontWeight:700,color:C.ok,background:C.okBg,borderRadius:999,padding:"2px 9px",border:"1px solid "+C.okBd}}>-{disc}%</span>}
-        </div>
-        {base!=null&&disc>0&&<div style={{fontSize:11,color:C.text3,marginTop:3}}>sem desconto: {base.toFixed(2).replace(".",",")+"\u20AC"}</div>}
-      </div>
-
-      {/* ── Arco SVG ── */}
-      <div style={{position:"relative",width:"100%",maxWidth:276,touchAction:"none",cursor:"pointer"}}
-        onMouseDown={e=>{dragging.current=true;fireChange(e.clientX,e.clientY);}}
-        onMouseMove={e=>{if(dragging.current)fireChange(e.clientX,e.clientY);}}
-        onMouseUp={()=>{dragging.current=false;}}
-        onMouseLeave={()=>{dragging.current=false;}}
-        onTouchStart={e=>{dragging.current=true;const t=e.touches[0];fireChange(t.clientX,t.clientY);}}
-        onTouchMove={e=>{e.preventDefault();const t=e.touches[0];if(dragging.current)fireChange(t.clientX,t.clientY);}}
-        onTouchEnd={()=>{dragging.current=false;}}
-      >
-        <svg ref={svgRef} viewBox="0 0 260 200" style={{width:"100%",display:"block",overflow:"visible"}}>
-          {/* Marcadores de 15 em 15 min */}
-          {OPTIONS.map((o,i)=>{
-            const d=DEG_START+(i/(TOTAL-1))*DEG_SWEEP;
-            const mr=R+14,mp=pt(d);
-            const isMajor=(o.mins%60===0);
-            return isMajor?(
-              <text key={o.mins} x={mp.x} y={mp.y} textAnchor="middle" dominantBaseline="middle"
-                fontSize="8" fontWeight="700" fill={color+"88"} fontFamily="Sora,system-ui,sans-serif">
-                {o.label}
-              </text>
-            ):(
-              <circle key={o.mins} cx={CX+(R+9)*Math.cos(rad(d))} cy={CY+(R+9)*Math.sin(rad(d))} r="1.5" fill={color+"44"}/>
-            );
-          })}
-          {/* Track */}
-          <path d={trackD} fill="none" stroke={C.bg3} strokeWidth={STR} strokeLinecap="round"/>
-          {/* Preenchimento */}
-          {fillD&&<path d={fillD} fill="none" stroke={color} strokeWidth={STR} strokeLinecap="round"
-            style={{filter:"drop-shadow(0 0 4px "+color+"66)"}}/>}
-          {/* Thumb */}
-          <circle cx={cP.x} cy={cP.y} r={STR*1.2} fill={color} style={{filter:"drop-shadow(0 3px 8px "+color+"99)"}}/>
-          <circle cx={cP.x} cy={cP.y} r={STR*0.45} fill="#fff"/>
-        </svg>
-      </div>
-
-      {/* Pills de acesso rápido */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,width:"100%",marginTop:4}}>
-        {PILLS.map(({m,l})=>{
-          const sel=mins===m;
-          return(
-            <button key={m} onClick={()=>onChange(m)}
-              style={{minHeight:40,padding:"8px 2px",borderRadius:12,border:"none",
-                fontFamily:"inherit",fontSize:11,fontWeight:700,cursor:"pointer",
-                background:sel?color:C.bg3,color:sel?"#fff":C.text2,
-                transition:"all .12s",boxShadow:sel?"0 2px 8px "+color+"55":"none"}}>
-              {l}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 const CircularTimer=({rem,cdTotal,barColor,expired})=>{
   const R=80,SW=11,C2=100;
@@ -2158,7 +2166,7 @@ const SuccessScreen=({goTo,state,onExtend,t,lang,setLang,notifSent,setNotifSent,
     <div style={{minHeight:"100svh",background:C.bg,display:"flex",flexDirection:"column"}}>
       <div style={{position:"relative",zIndex:9999}}>
         <Nav left={<span/>} title={t.receipt}
-          right={<div style={{position:"relative"}}><Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/></div>}/>
+          right={<div style={{display:"flex",alignItems:"center",gap:8,position:"relative"}}><LangToggle lang={lang} setLang={setLang}/><Menu goTo={goTo} t={t}/></div>}/>
       </div>
 
       {/* Confirmação header */}
@@ -2482,7 +2490,7 @@ const ResArea=({goTo,user,setUser,t,lang,setLang})=>{
         <Nav left={<Back onClick={()=>goTo("landing")}/>} title={t.myAccount}
           right={<div style={{display:"flex",gap:8,alignItems:"center"}}>
             <NavLink onClick={()=>{setUser(null);goTo("landing");}}>{t.signOut}</NavLink>
-            <div style={{position:"relative"}}><Menu goTo={goTo} lang={lang} setLang={setLang} t={t}/></div>
+            <div style={{display:"flex",alignItems:"center",gap:8,position:"relative"}}><LangToggle lang={lang} setLang={setLang}/><Menu goTo={goTo} t={t}/></div>
           </div>}/>
       </div>
       <div style={{flex:1,padding:"24px 18px 48px",maxWidth:480,margin:"0 auto",width:"100%"}}>
@@ -3063,12 +3071,12 @@ const OpPanel=({goTo,user,setUser,toast,t,lang,setLang})=>{
           </div>
           <div>
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>{user?.name}</div>
-            <div style={{fontSize:12,color:C.text2,marginTop:2}}>Agente de Fiscalização · {new Date().toLocaleDateString("pt-PT",{weekday:"long"})}</div>
+            <div style={{fontSize:12,color:C.text2,marginTop:2}}>Fiscal Municipal · {new Date().toLocaleDateString("pt-PT",{weekday:"long"})}</div>
           </div>
         </div>
         <div style={{fontSize:21,fontWeight:800,color:C.text,marginBottom:6}}>{t.opSelectZone}</div>
         <div style={{fontSize:14,color:C.text2,marginBottom:24,lineHeight:1.6}}>
-          Seleccione a zona em fiscalização para consultar as sessões activas e verificar matrículas.
+          Seleccione a zona a fiscalizar para consultar sessões activas e verificar matrículas.
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {Object.entries(ZONES).map(([id,z])=>{
@@ -3671,6 +3679,17 @@ export default function ParkPX(){
     return null;
   };
   const [user,setUser]=useState(restoreSession);
+  const [notifSent,setNotifSent]=useState(false);
+  const [state,setState]=useState(()=>{
+    try{
+      const live=JSON.parse(localStorage.getItem("pkx_sess_v9")||"[]");
+      const act=Array.isArray(live)?live.find(s=>new Date(s.end)>new Date()):null;
+      if(act)return{zone:act.zone,price:ZONES[act.zone]?.rate||1,plate:act.plate,
+        mins:act.mins,total:act.total||0,pay:act.method,ref:act.ref,
+        startTime:new Date(act.start),endTime:new Date(act.end),cdTotal:act.mins*60};
+    }catch{}
+    return{zone:null,price:0,plate:"",mins:60,total:0,pay:null,ref:null,startTime:null,endTime:null,cdTotal:0};
+  });
 
   // ── Persistir sessão + matrícula + redirect + sync entre tabs ────────────
   useEffect(()=>{
